@@ -18,6 +18,24 @@ router.post('/', upload.array('images', 10),parseOverview, propertyController.cr
 // Route to get all properties
 router.get('/', propertyController.getAllProperties);
 
+// Route to get standard locality options
+router.get('/localities', (req, res) => {
+    const standardLocalities = [
+        'Downtown',
+        'North',
+        'East',
+        'West',
+        'South',
+        'Suburbs',
+        'Midtown',
+        'Central',
+        'Business District',
+        'Residential Area'
+    ];
+    
+    res.status(200).send({ localities: standardLocalities });
+});
+
 // Route to edit a property
 router.put('/:id', upload.array('images', 10),parseOverview, propertyController.editProperty); // Allow image uploads for editing
 

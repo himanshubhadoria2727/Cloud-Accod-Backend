@@ -21,6 +21,24 @@ const overviewSchema = new mongoose.Schema({
         type: Number,
         required: true,
     },
+    roomType: {
+        type: String,
+        enum: ['private', 'shared'],
+        default: 'private',
+        required: true,
+    },
+    kitchenType: {
+        type: String,
+        enum: ['private', 'shared'],
+        default: 'private',
+        required: true,
+    },
+    bathroomType: {
+        type: String,
+        enum: ['private', 'shared'],
+        default: 'private',
+        required: true,
+    },
 });
 
 const propertySchema = new mongoose.Schema({
@@ -34,6 +52,22 @@ const propertySchema = new mongoose.Schema({
     },
     price: {
         type: Number,
+        required: true,
+    },
+    securityDeposit: {
+        type: Number,
+        required: true,
+        default: 0,
+    },
+    currency: {
+        type: String,
+        enum: ['USD', 'INR', 'CAD', 'GBP', 'EUR', 'AUD'],
+        default: 'USD',
+        required: true,
+    },
+    country: {
+        type: String,
+        enum: ['USA', 'India', 'Canada', 'UK', 'EU', 'Australia'],
         required: true,
     },
     latitude: {
@@ -50,6 +84,10 @@ const propertySchema = new mongoose.Schema({
         required: true,
     },
     amenities: {
+        type: [String],
+        required: false,
+    },
+    utilities: {
         type: [String],
         required: false,
     },
@@ -70,6 +108,10 @@ const propertySchema = new mongoose.Schema({
         required: true, 
     },
     city: {
+        type: String,
+        required: false,
+    },
+    locality: {
         type: String,
         required: false,
     },

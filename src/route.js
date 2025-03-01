@@ -7,6 +7,8 @@ const categoryRoute = require("./modules/category/category.route");
 const subcategoryRoute = require("./modules/subcategory/subcategory.route");
 const twilioRouter = require("./modules/twilio/twilio.route");
 const propertyRoute = require("./modules/property/property.route");
+const analyticsRoute = require("./modules/analytics/analytics.route");
+const bookingRoute = require("./modules/booking/booking.route");
 
 const registerRoute = (app) => {
  
@@ -19,6 +21,8 @@ const registerRoute = (app) => {
   app.use("/api/subcategory", subcategoryRoute);
   app.use(twilioRouter);
   app.use("/api/property", propertyRoute);
+  app.use("/api/analytics", analyticsRoute);
+  app.use("/api/booking", bookingRoute);
 
 };
 

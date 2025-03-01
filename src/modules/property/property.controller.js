@@ -1,11 +1,36 @@
 const Property = require('../../model/property.model');
 const { getImageUrl } = require('../../utility/uploadfile'); // Import getImageUrl
+const { PropertyView } = require('../../model/analytics.model'); // Import PropertyView model
+
+// Add currency mapping
+const COUNTRY_TO_CURRENCY = {
+    'USA': 'USD',
+    'India': 'INR',
+    'Canada': 'CAD',
+    'UK': 'GBP',
+    'EU': 'EUR',
+    'Australia': 'AUD'
+};
 
 // Function to create a new property
 const createProperty = async (req, res) => {
     try {
         const propertyData = req.body; // Get other property data
         const images = req.files ? req.files.map(file => getImageUrl(file.filename)) : []; // Get the URLs of uploaded images if any
+
+        // Add currency based on country
+        if (propertyData.country) {
+            propertyData.currency = COUNTRY_TO_CURRENCY[propertyData.country] || 'USD';
+        }
+
+        // Ensure arrays are properly handled
+        if (propertyData.utilities && !Array.isArray(propertyData.utilities)) {
+            propertyData.utilities = [propertyData.utilities];
+        }
+        
+        if (propertyData.amenities && !Array.isArray(propertyData.amenities)) {
+            propertyData.amenities = [propertyData.amenities];
+        }
 
         const property = new Property({
             ...propertyData,
@@ -24,12 +49,35 @@ const createProperty = async (req, res) => {
 // Function to get all properties with optional search queries
 const getAllProperties = async (req, res) => {
     try {
-        const { id, title, city, type, minPrice, maxPrice } = req.query;  // Changed from _id to id
+        const { id, title, city, type, minPrice, maxPrice, country } = req.query;  // Changed from _id to id
 
         // If id is provided, use findById to get single property
         if (id) {
             try {
                 const property = await Property.findById(id);
+                
+                // Record property view if property exists
+                if (property) {
+                    try {
+                        // Find existing view record or create new one
+                        let propertyView = await PropertyView.findOne({ propertyId: id });
+                        
+                        if (propertyView) {
+                            // Update existing record
+                            propertyView.viewCount += 1;
+                            propertyView.lastViewed = new Date();
+                            await propertyView.save();
+                        } else {
+                            // Create new record
+                            propertyView = new PropertyView({ propertyId: id });
+                            await propertyView.save();
+                        }
+                    } catch (viewError) {
+                        console.error("Error recording property view", viewError);
+                        // Continue with the response even if view recording fails
+                    }
+                }
+                
                 return res.status(200).send(property ? [property] : []);
             } catch (error) {
                 return res.status(400).send({ message: "Invalid ID format" });
@@ -46,6 +94,9 @@ const getAllProperties = async (req, res) => {
         }
         if (type) {
             searchCriteria.type = type;
+        }
+        if (country) {
+            searchCriteria.country = country;
         }
         if (minPrice || maxPrice) {
             searchCriteria.price = {};
@@ -66,13 +117,18 @@ const getAllProperties = async (req, res) => {
 // Function to edit a property
 const editProperty = async (req, res) => {
     const updates = Object.keys(req.body);
-    const allowedUpdates = ['title', 'description', 'price', 'latitude', 'longitude', 'type', 'amenities', 'overview', 'rentDetails', 'termsOfStay', 'images', 'city','verified'];
+    const allowedUpdates = ['title', 'description', 'price', 'latitude', 'longitude', 'type', 'amenities', 'overview', 'rentDetails', 'termsOfStay', 'images', 'city', 'country', 'verified', 'locality', 'securityDeposit', 'utilities'];
     console.log("city", req.body.city);
 
     try {
         const property = await Property.findById(req.params.id);
         if (!property) {
             return res.status(404).send({ error: 'Property not found' });
+        }
+
+        // Update currency if country is being updated
+        if (req.body.country) {
+            req.body.currency = COUNTRY_TO_CURRENCY[req.body.country] || 'USD';
         }
 
         // Initialize a fresh array for images
