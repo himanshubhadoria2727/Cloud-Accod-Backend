@@ -49,7 +49,23 @@ const createProperty = async (req, res) => {
 // Function to get all properties with optional search queries
 const getAllProperties = async (req, res) => {
     try {
-        const { id, title, city, type, minPrice, maxPrice, country } = req.query;  // Changed from _id to id
+        const { 
+            id, 
+            title, 
+            city, 
+            type, 
+            minPrice, 
+            maxPrice, 
+            country,
+            university,
+            locality,
+            moveInMonth,
+            stayDuration,
+            roomType,
+            bathroomType,
+            kitchenType,
+            sortBy
+        } = req.query;
 
         // If id is provided, use findById to get single property
         if (id) {
@@ -59,22 +75,18 @@ const getAllProperties = async (req, res) => {
                 // Record property view if property exists
                 if (property) {
                     try {
-                        // Find existing view record or create new one
                         let propertyView = await PropertyView.findOne({ propertyId: id });
                         
                         if (propertyView) {
-                            // Update existing record
                             propertyView.viewCount += 1;
                             propertyView.lastViewed = new Date();
                             await propertyView.save();
                         } else {
-                            // Create new record
                             propertyView = new PropertyView({ propertyId: id });
                             await propertyView.save();
                         }
                     } catch (viewError) {
                         console.error("Error recording property view", viewError);
-                        // Continue with the response even if view recording fails
                     }
                 }
                 
@@ -84,7 +96,7 @@ const getAllProperties = async (req, res) => {
             }
         }
 
-        // Build the search criteria for other filters
+        // Build the search criteria
         const searchCriteria = {};
         if (title) {
             searchCriteria.title = { $regex: title, $options: 'i' };
@@ -107,13 +119,55 @@ const getAllProperties = async (req, res) => {
                 searchCriteria.price.$lte = Number(maxPrice);
             }
         }
+        if (university) {
+            searchCriteria.nearbyUniversities = { $regex: university, $options: 'i' };
+        }
+        if (locality) {
+            searchCriteria.locality = { $regex: locality, $options: 'i' };
+        }
+        if (moveInMonth) {
+            searchCriteria.availableFrom = {
+                $regex: new RegExp(moveInMonth, 'i')
+            };
+        }
+        if (stayDuration) {
+            searchCriteria.minimumStayDuration = stayDuration;
+        }
+        if (roomType) {
+            searchCriteria.overview.roomType = roomType;
+        }
+        if (bathroomType) {
+            searchCriteria.overview.bathroomType = bathroomType;
+        }
+        if (kitchenType) {
+            searchCriteria.overview.kitchenType = kitchenType;
+        }
 
-        const properties = await Property.find(searchCriteria);
+        // Handle sorting
+        let sortOptions = {};
+        if (sortBy) {
+            switch (sortBy) {
+                case 'Price: Low to High':
+                    sortOptions.price = 1;
+                    break;
+                case 'Price: High to Low':
+                    sortOptions.price = -1;
+                    break;
+                case 'Newest Listings':
+                    sortOptions.createdAt = -1;
+                    break;
+                default:
+                    sortOptions.createdAt = -1;
+            }
+        }
+
+        const properties = await Property.find(searchCriteria).sort(sortOptions);
         res.status(200).send(properties);
     } catch (error) {
         res.status(500).send(error);
     }
 };
+
 // Function to edit a property
 const editProperty = async (req, res) => {
     const updates = Object.keys(req.body);
