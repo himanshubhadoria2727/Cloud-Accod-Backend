@@ -9,6 +9,7 @@ const twilioRouter = require("./modules/twilio/twilio.route");
 const propertyRoute = require("./modules/property/property.route");
 const analyticsRoute = require("./modules/analytics/analytics.route");
 const bookingRoute = require("./modules/booking/booking.route");
+const paymentRoute = require("./modules/payment/payment.route");
 
 const registerRoute = (app) => {
  
@@ -23,6 +24,7 @@ const registerRoute = (app) => {
   app.use("/api/property", propertyRoute);
   app.use("/api/analytics", analyticsRoute);
   app.use("/api/booking", bookingRoute);
+  app.use("/api/payment", paymentRoute);
 
 };
 

@@ -38,6 +38,32 @@ const bookingSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    // Payment related fields
+    paymentStatus: {
+      type: String,
+      enum: ['pending', 'processing', 'completed', 'failed', 'refunded'],
+      default: 'pending',
+    },
+    paymentIntentId: {
+      type: String,
+      default: null,
+    },
+    paymentMethod: {
+      type: String,
+      default: null,
+    },
+    paymentAmount: {
+      type: Number,
+      default: 0,
+    },
+    paymentDate: {
+      type: Date,
+      default: null,
+    },
+    stripeCustomerId: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true, // Automatically add createdAt and updatedAt fields
