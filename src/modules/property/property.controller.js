@@ -120,27 +120,29 @@ const getAllProperties = async (req, res) => {
             }
         }
         if (university) {
-            searchCriteria.nearbyUniversities = { $regex: university, $options: 'i' };
+            searchCriteria.nearbyUniversities = { $elemMatch: { $regex: university, $options: 'i' } };
         }
         if (locality) {
             searchCriteria.locality = { $regex: locality, $options: 'i' };
         }
-        if (moveInMonth) {
-            searchCriteria.availableFrom = {
-                $regex: new RegExp(moveInMonth, 'i')
-            };
+        if (moveInMonth && moveInMonth.length > 0) {
+            const monthsArray = typeof moveInMonth === 'string' ? [moveInMonth] : moveInMonth;
+            searchCriteria.availableFrom = { $in: monthsArray };
         }
         if (stayDuration) {
             searchCriteria.minimumStayDuration = stayDuration;
         }
-        if (roomType) {
-            searchCriteria.overview.roomType = roomType;
+        if (roomType && roomType.length > 0) {
+            const types = typeof roomType === 'string' ? [roomType] : roomType;
+            searchCriteria['overview.roomType'] = { $in: types };
         }
-        if (bathroomType) {
-            searchCriteria.overview.bathroomType = bathroomType;
+        if (bathroomType && bathroomType.length > 0) {
+            const types = typeof bathroomType === 'string' ? [bathroomType] : bathroomType;
+            searchCriteria['overview.bathroomType'] = { $in: types };
         }
-        if (kitchenType) {
-            searchCriteria.overview.kitchenType = kitchenType;
+        if (kitchenType && kitchenType.length > 0) {
+            const types = typeof kitchenType === 'string' ? [kitchenType] : kitchenType;
+            searchCriteria['overview.kitchenType'] = { $in: types };
         }
 
         // Handle sorting

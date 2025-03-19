@@ -131,6 +131,20 @@ const propertySchema = new mongoose.Schema({
         type: Date,
         default: Date.now,
     },
+    minimumStayDuration: {
+        type: String,
+        enum: ['Less than 6 months', '6-12 months', '1 year+'],
+        required: true
+    },
+    availableFrom: {
+        type: String,
+        enum: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        required: true
+    },
+    nearbyUniversities: {
+        type: [String],
+        default: []
+    }
 });
 
 // Middleware to update the updatedAt field before saving
