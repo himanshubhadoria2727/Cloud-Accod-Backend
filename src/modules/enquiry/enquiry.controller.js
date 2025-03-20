@@ -36,20 +36,44 @@ const submitEnquiry = async (req, res) => {
     res.status(500).json({ error: 'An error occurred while submitting your enquiry.' });
   }
 };
-const getEnquiries = async (req, res) => {
-    try {
-      // Fetch all enquiries (you can add pagination, sorting, etc. if needed)
-      const enquiries = await Enquiry.find().sort({ createdAt: -1 }); // Sort by latest created
-  
-      // Return the list of enquiries
-      res.status(200).json({
-        message: 'Enquiries fetched successfully!',
-        enquiries: enquiries,
-      });
-    } catch (error) {
-      console.error('Error fetching enquiries:', error);
-      res.status(500).json({ error: 'An error occurred while fetching enquiries.' });
-    }
-  };
 
-module.exports = { submitEnquiry,getEnquiries };
+const getEnquiries = async (req, res) => {
+  try {
+    // Fetch all enquiries (you can add pagination, sorting, etc. if needed)
+    const enquiries = await Enquiry.find().sort({ createdAt: -1 }); // Sort by latest created
+
+    // Return the list of enquiries
+    res.status(200).json({
+      message: 'Enquiries fetched successfully!',
+      enquiries: enquiries,
+    });
+  } catch (error) {
+    console.error('Error fetching enquiries:', error);
+    res.status(500).json({ error: 'An error occurred while fetching enquiries.' });
+  }
+};
+
+const deleteEnquiry = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Delete the enquiry by ID
+    const deletedEnquiry = await Enquiry.findByIdAndDelete(id);
+
+    if (!deletedEnquiry) {
+      return res.status(404).json({ error: 'Enquiry not found' });
+    }
+
+    // Return success response
+    res.status(200).json({
+      message: 'Enquiry deleted successfully!',
+      enquiry: deletedEnquiry,
+    });
+  } catch (error) {
+    console.error('Error deleting enquiry:', error);
+    res.status(500).json({ error: 'An error occurred while deleting the enquiry.' });
+  }
+};
+
+module.exports = { submitEnquiry, getEnquiries, deleteEnquiry };
+
