@@ -173,7 +173,7 @@ const getAllProperties = async (req, res) => {
 // Function to edit a property
 const editProperty = async (req, res) => {
     const updates = Object.keys(req.body);
-    const allowedUpdates = ['title', 'description', 'price', 'latitude', 'longitude', 'type', 'amenities', 'overview', 'rentDetails', 'termsOfStay', 'images', 'city', 'country', 'verified', 'locality', 'securityDeposit', 'utilities'];
+    const allowedUpdates = ['title', 'description', 'price', 'latitude', 'longitude', 'type', 'amenities', 'overview', 'rentDetails', 'termsOfStay', 'images', 'city', 'country', 'verified', 'locality', 'securityDeposit', 'utilities', 'availableFrom', 'minimumStayDuration'];
     console.log("city", req.body.city);
 
     try {
@@ -184,7 +184,7 @@ const editProperty = async (req, res) => {
 
         // Update currency if country is being updated
         if (req.body.country) {
-            req.body.currency = COUNTRY_TO_CURRENCY[req.body.country] || 'USD';
+            property.currency = COUNTRY_TO_CURRENCY[req.body.country] || 'USD';
         }
 
         // Initialize a fresh array for images

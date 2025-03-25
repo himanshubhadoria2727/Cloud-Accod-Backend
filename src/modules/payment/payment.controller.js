@@ -49,7 +49,7 @@ const createPaymentIntent = async (req, res) => {
     // Create payment intent
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
-      currency: 'usd',
+      currency: bookingDetails?.currency,
       metadata: {
         bookingDetails: JSON.stringify(bookingDetails)
       }
