@@ -34,7 +34,7 @@ const upload = multer({
 const getImageUrl = (filename) => {
     return `${process.env.API_BASE_URL}/media/${filename}`;
 };
-
+//checking updates
 module.exports = {
     upload,
     getImageUrl
