@@ -15,4 +15,10 @@ router.post('/favorite/:propertyId', Authenticateuser, analyticsController.toggl
 router.post('/review/:propertyId', Authenticateuser, analyticsController.addReview);
 router.post('/transaction', Authenticateuser, analyticsController.recordTransaction);
 
+// Review management routes
+router.get('/reviews', analyticsController.getAllReviews);
+router.get('/reviews/property/:propertyId', analyticsController.getPropertyReviews);
+router.put('/reviews/:reviewId', Authenticateuser, analyticsController.updateReview);
+router.delete('/reviews/:reviewId', Authenticateuser, analyticsController.deleteReview);
+
 module.exports = router; 

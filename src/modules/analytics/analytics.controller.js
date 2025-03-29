@@ -255,6 +255,178 @@ const addReview = async (req, res) => {
     }
 };
 
+// Get all reviews with pagination, sorting and optional filters
+const getAllReviews = async (req, res) => {
+    try {
+        const { page = 1, limit = 10, sortBy = 'createdAt', order = 'desc', propertyId, rating } = req.query;
+        
+        // Build query object
+        const query = {};
+        if (propertyId) query.propertyId = propertyId;
+        if (rating) {
+            const parsedRating = parseInt(rating);
+            if (!isNaN(parsedRating)) {
+                query.rating = parsedRating;
+            }
+        }
+        
+        // Build sort object
+        const sort = {};
+        sort[sortBy] = order === 'desc' ? -1 : 1;
+        
+        // Calculate pagination values
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        
+        // Get total count
+        const total = await Review.countDocuments(query);
+        
+        // Get reviews with pagination
+        const reviews = await Review.find(query)
+            .sort(sort)
+            .skip(skip)
+            .limit(parseInt(limit))
+            .populate('userId', 'firstname lastname username email')
+            .populate('propertyId', 'title images location');
+        
+        // Format reviews
+        const formattedReviews = reviews.map(review => ({
+            id: review._id,
+            userName: review.userId ? 
+                `${review.userId.firstname || ''} ${review.userId.lastname || ''}`.trim() || 
+                review.userId.username : 'Anonymous',
+            userEmail: review.userId?.email || 'N/A',
+            propertyId: review.propertyId?._id || 'N/A',
+            propertyTitle: review.propertyId?.title || 'Unknown Property',
+            propertyImage: review.propertyId?.images?.[0] || null,
+            propertyLocation: review.propertyId?.location || 'N/A',
+            rating: review.rating,
+            comment: review.comment,
+            createdAt: review.createdAt
+        }));
+        
+        // Send response
+        res.status(200).json({
+            reviews: formattedReviews,
+            pagination: {
+                total,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                pages: Math.ceil(total / parseInt(limit))
+            }
+        });
+    } catch (error) {
+        console.error('Error getting reviews:', error);
+        res.status(500).json({ message: 'Failed to get reviews', error: error.message });
+    }
+};
+
+// Get reviews for a specific property
+const getPropertyReviews = async (req, res) => {
+    try {
+        const { propertyId } = req.params;
+        
+        // Check if property exists
+        const property = await Property.findById(propertyId);
+        if (!property) {
+            return res.status(404).json({ message: 'Property not found' });
+        }
+        
+        // Get reviews for property
+        const reviews = await Review.find({ propertyId })
+            .sort({ createdAt: -1 })
+            .populate('userId', 'firstname lastname username');
+            
+        // Calculate average rating
+        const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+        const averageRating = reviews.length > 0 ? (totalRating / reviews.length).toFixed(1) : 0;
+        
+        // Format reviews
+        const formattedReviews = reviews.map(review => ({
+            id: review._id,
+            userName: review.userId ? 
+                `${review.userId.firstname || ''} ${review.userId.lastname || ''}`.trim() || 
+                review.userId.username : 'Anonymous',
+            rating: review.rating,
+            comment: review.comment,
+            createdAt: review.createdAt
+        }));
+        
+        // Send response
+        res.status(200).json({
+            reviews: formattedReviews,
+            stats: {
+                count: reviews.length,
+                averageRating: parseFloat(averageRating),
+                distribution: {
+                    5: reviews.filter(r => r.rating === 5).length,
+                    4: reviews.filter(r => r.rating === 4).length,
+                    3: reviews.filter(r => r.rating === 3).length,
+                    2: reviews.filter(r => r.rating === 2).length,
+                    1: reviews.filter(r => r.rating === 1).length
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error getting property reviews:', error);
+        res.status(500).json({ message: 'Failed to get property reviews', error: error.message });
+    }
+};
+
+// Delete a review
+const deleteReview = async (req, res) => {
+    try {
+        const { reviewId } = req.params;
+        
+        // Check if review exists
+        const review = await Review.findById(reviewId);
+        if (!review) {
+            return res.status(404).json({ message: 'Review not found' });
+        }
+        
+        // Delete review
+        await Review.findByIdAndDelete(reviewId);
+        
+        res.status(200).json({ message: 'Review deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting review:', error);
+        res.status(500).json({ message: 'Failed to delete review', error: error.message });
+    }
+};
+
+// Update a review
+const updateReview = async (req, res) => {
+    try {
+        const { reviewId } = req.params;
+        const { rating, comment } = req.body;
+        
+        // Check if review exists
+        const review = await Review.findById(reviewId);
+        if (!review) {
+            return res.status(404).json({ message: 'Review not found' });
+        }
+        
+        // Validate input
+        if (!rating || !comment) {
+            return res.status(400).json({ message: 'Rating and comment are required' });
+        }
+        
+        // Update review
+        const updatedReview = await Review.findByIdAndUpdate(
+            reviewId,
+            { rating, comment, updatedAt: Date.now() },
+            { new: true }
+        );
+        
+        res.status(200).json({ 
+            message: 'Review updated successfully', 
+            review: updatedReview 
+        });
+    } catch (error) {
+        console.error('Error updating review:', error);
+        res.status(500).json({ message: 'Failed to update review', error: error.message });
+    }
+};
+
 // Record a transaction
 const recordTransaction = async (req, res) => {
     try {
@@ -297,5 +469,9 @@ module.exports = {
     recordPropertyView,
     toggleFavorite,
     addReview,
-    recordTransaction
+    recordTransaction,
+    getAllReviews,
+    getPropertyReviews,
+    deleteReview,
+    updateReview
 }; 
