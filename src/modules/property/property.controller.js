@@ -1,6 +1,7 @@
 const Property = require('../../model/property.model');
 const { getImageUrl } = require('../../utility/uploadfile'); // Import getImageUrl
 const { PropertyView } = require('../../model/analytics.model'); // Import PropertyView model
+const { fetchUniversities } = require('../../utility/universities'); // Import university fetch utility
 
 // Add currency mapping
 const COUNTRY_TO_CURRENCY = {
@@ -120,7 +121,15 @@ const getAllProperties = async (req, res) => {
             }
         }
         if (university) {
-            searchCriteria.nearbyUniversities = { $elemMatch: { $regex: university, $options: 'i' } };
+            console.log('Searching for university:', university);
+            // Parse the nearbyUniversities string if needed and search for the university
+            // This handles both cases: when nearbyUniversities is stored as a JSON string or as an array
+            searchCriteria.$or = [
+                // Case 1: When nearbyUniversities is stored as an array of strings
+                { nearbyUniversities: { $regex: university, $options: 'i' } },
+                // Case 2: When nearbyUniversities is stored as a JSON string
+                { nearbyUniversities: { $regex: `"${university}"`, $options: 'i' } }
+            ];
         }
         if (locality) {
             searchCriteria.locality = { $regex: locality, $options: 'i' };
@@ -238,10 +247,39 @@ const deleteProperty = async (req, res) => {
     }
 };
 
+// Function to fetch universities by city and country
+const getUniversitiesByLocation = async (req, res) => {
+    try {
+        const { city, country } = req.query;
+        
+        // Validate the request parameters
+        if (!country) {
+            return res.status(400).send({ error: 'Country is required', universities: [] });
+        }
+        
+        console.log(`Received request for universities in ${city || 'any city'}, ${country}`);
+        
+        // Fetch universities using our utility function
+        // The utility now handles all special cases and fallbacks internally
+        const universities = await fetchUniversities(country, city);
+        
+        // Log results for debugging
+        console.log(`Returning ${universities.length} universities for ${city || 'any city'}, ${country}`);
+        
+        // Always return a 200 status with the universities array (which might be empty)
+        res.status(200).send(universities);
+    } catch (error) {
+        console.error('Error in getUniversitiesByLocation controller:', error);
+        // Return an empty array instead of an error to prevent frontend issues
+        res.status(200).send([]);
+    }
+};
+
 // Export all functions at the bottom
 module.exports = {
     createProperty,
     getAllProperties,
     editProperty,
     deleteProperty,
+    getUniversitiesByLocation,
 };

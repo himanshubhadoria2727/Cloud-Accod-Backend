@@ -133,7 +133,23 @@ const propertySchema = new mongoose.Schema({
     },
     minimumStayDuration: {
         type: String,
-        enum: ['Less than 6 months', '6-12 months', '1 year+'],
+        enum: [
+            'Month-to-Month', 
+            'Jan to Mar', 'Jan to Jun', 'Jan to Sep', 'Jan to Dec',
+            'Feb to Apr', 'Feb to Jul', 'Feb to Oct', 'Feb to Dec',
+            'Mar to May', 'Mar to Aug', 'Mar to Nov', 'Mar to Dec',
+            'Apr to Jun', 'Apr to Sep', 'Apr to Dec',
+            'May to Jul', 'May to Oct', 'May to Dec',
+            'Jun to Aug', 'Jun to Nov', 'Jun to Dec',
+            'Jul to Sep', 'Jul to Dec',
+            'Aug to Oct', 'Aug to Dec',
+            'Sep to Nov', 'Sep to Dec',
+            'Oct to Dec',
+            'Nov to Dec',
+            'Less than 6 months', 
+            '6-12 months', 
+            '1 year+'
+        ],
         required: true
     },
     availableFrom: {
@@ -143,7 +159,19 @@ const propertySchema = new mongoose.Schema({
     },
     nearbyUniversities: {
         type: [String],
-        default: []
+        default: [],
+        set: function(universities) {
+            // Handle case where universities is a JSON string
+            if (typeof universities === 'string' && universities.startsWith('[') && universities.endsWith(']')) {
+                try {
+                    return JSON.parse(universities);
+                } catch (e) {
+                    console.error('Error parsing nearbyUniversities:', e);
+                    return universities;
+                }
+            }
+            return universities;
+        }
     }
 });
 

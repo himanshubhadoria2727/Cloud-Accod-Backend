@@ -18,6 +18,9 @@ router.post('/', upload.array('images', 10),parseOverview, propertyController.cr
 // Route to get all properties
 router.get('/', propertyController.getAllProperties);
 
+// Route to get universities by location (city/country)
+router.get('/universities', propertyController.getUniversitiesByLocation);
+
 // Route to get standard locality options
 router.get('/localities', (req, res) => {
     const standardLocalities = [
