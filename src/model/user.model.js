@@ -50,7 +50,17 @@ const userschema = new mongoose.Schema({
         type: String,
         enum: ['user', 'admin'],
         default: 'user'
-    }]
+    }],
+    
+    // Google authentication fields
+    googleId: {
+        type: String,
+        required: false,
+    },
+    profilePicture: {
+        type: String,
+        required: false,
+    }
 
 }, {
     timestamps: true,

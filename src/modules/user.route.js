@@ -1,6 +1,6 @@
 const express = require('express');
 const { Authenticateuser } = require('../middleware/middleware');
-const { addUser, verifyUser, login, getUser, getUserDetails,resendOtp,getAnalytics, updateUser,deleterUser } = require('./user.controller');
+const { addUser, verifyUser, login, getUser, getUserDetails,resendOtp,getAnalytics, updateUser,deleterUser, googleAuth } = require('./user.controller');
 const {getMySubscriptionPlans,updateMySubscription} = require('./mySubscription/mySubscription.controller');
 const router = express.Router();
 
@@ -154,7 +154,7 @@ router.post('/verify',Authenticateuser, verifyUser);
 
 /**
  * @swagger
- * /users/:
+ * /users/login:
  *   post:
  *     summary: User login
  *     tags: [Users]
@@ -179,6 +179,40 @@ router.post('/verify',Authenticateuser, verifyUser);
  *         description: Invalid credentials
  */
 router.post('/login', login);
+
+/**
+ * @swagger
+ * /users/google-auth:
+ *   post:
+ *     summary: Google authentication
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: The email from Google
+ *               name:
+ *                 type: string
+ *                 description: The user's name from Google
+ *               googleId:
+ *                 type: string
+ *                 description: The Google ID
+ *               picture:
+ *                 type: string
+ *                 description: URL to the user's profile picture
+ *     responses:
+ *       200:
+ *         description: Authentication successful
+ *       400:
+ *         description: Invalid input
+ */
+router.post('/google-auth', googleAuth);
 
 router.get('/analytics', getAnalytics);
 

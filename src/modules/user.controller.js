@@ -506,6 +506,71 @@ const getAnalytics = async (req, res) => {
     });
   }
 }
+
+const googleAuth = async (req, res) => {
+  try {
+    const { email, name, googleId, picture } = req.body;
+
+    if (!email || !googleId) {
+      return res.status(400).json({ message: "Email and Google ID are required" });
+    }
+
+    // Check if user already exists with this email
+    let existingUser = await User.findOne({ email: email });
+
+    if (existingUser) {
+      // User exists, generate token and return
+      let signature = await GeneratesSignature({
+        _id: existingUser._id,
+        email: existingUser.email,
+        verified: true, // Google users are pre-verified
+      });
+
+      return res.status(200).json({
+        signature,
+        verified: true,
+        _id: existingUser._id,
+      });
+    }
+
+    // Create new user with Google credentials
+    // Generate a random secure password - not needed for Google login
+    const randomPassword = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+
+    const newUser = new User({
+      email,
+      username: email.split("@")[0], // Generate username from email
+      firstname: name ? name.split(" ")[0] : "",
+      lastname: name ? name.split(" ").slice(1).join(" ") : "",
+      password: randomPassword,
+      country_code: "",
+      country_name: "",
+      plan: "",
+      verified: true, // Google users are pre-verified
+      googleId: googleId,
+      profilePicture: picture || "",
+    });
+
+    const savedUser = await newUser.save();
+
+    // Generate signature for the new user
+    let signature = await GeneratesSignature({
+      _id: savedUser._id,
+      email: savedUser.email,
+      verified: true,
+    });
+
+    return res.status(201).json({
+      signature,
+      verified: true,
+      _id: savedUser._id,
+    });
+  } catch (err) {
+    console.error("Google auth error:", err);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   addUser,
   login,
@@ -515,5 +580,6 @@ module.exports = {
   updateUser,
   resendOtp,
   deleterUser,
-  getAnalytics
+  getAnalytics,
+  googleAuth,
 };
