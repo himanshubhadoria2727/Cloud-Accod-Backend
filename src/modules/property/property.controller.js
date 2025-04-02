@@ -24,6 +24,16 @@ const createProperty = async (req, res) => {
             propertyData.currency = COUNTRY_TO_CURRENCY[propertyData.country] || 'USD';
         }
 
+        // Handle nearbyUniversities properly
+        if (propertyData.nearbyUniversities) {
+            try {
+                propertyData.nearbyUniversities = JSON.parse(propertyData.nearbyUniversities);
+            } catch (e) {
+                console.error('Error parsing nearbyUniversities:', e);
+                propertyData.nearbyUniversities = [];
+            }
+        }
+
         // Ensure arrays are properly handled
         if (propertyData.utilities && !Array.isArray(propertyData.utilities)) {
             propertyData.utilities = [propertyData.utilities];
@@ -103,7 +113,11 @@ const getAllProperties = async (req, res) => {
             searchCriteria.title = { $regex: title, $options: 'i' };
         }
         if (city) {
-            searchCriteria.city = { $regex: city, $options: 'i' };
+            searchCriteria.$or = searchCriteria.$or || [];
+            searchCriteria.$or.push(
+                { city: { $regex: new RegExp(city, 'i') } },
+                { locality: { $regex: new RegExp(city, 'i') } }
+            );
         }
         if (type) {
             searchCriteria.type = type;
@@ -122,13 +136,11 @@ const getAllProperties = async (req, res) => {
         }
         if (university) {
             console.log('Searching for university:', university);
-            // Parse the nearbyUniversities string if needed and search for the university
-            // This handles both cases: when nearbyUniversities is stored as a JSON string or as an array
             searchCriteria.$or = [
-                // Case 1: When nearbyUniversities is stored as an array of strings
-                { nearbyUniversities: { $regex: university, $options: 'i' } },
-                // Case 2: When nearbyUniversities is stored as a JSON string
-                { nearbyUniversities: { $regex: `"${university}"`, $options: 'i' } }
+                // Check within array elements
+                { nearbyUniversities: { $elemMatch: { $regex: new RegExp(university, 'i') } } },
+                // Fallback for string-based search
+                { nearbyUniversities: { $regex: new RegExp(university, 'i') } }
             ];
         }
         if (locality) {
@@ -182,7 +194,13 @@ const getAllProperties = async (req, res) => {
 // Function to edit a property
 const editProperty = async (req, res) => {
     const updates = Object.keys(req.body);
-    const allowedUpdates = ['title', 'description', 'price', 'latitude', 'longitude', 'type', 'amenities', 'overview', 'rentDetails', 'termsOfStay', 'images', 'city', 'country', 'verified', 'locality', 'securityDeposit', 'utilities', 'availableFrom', 'minimumStayDuration'];
+    const allowedUpdates = [
+        'title', 'description', 'price', 'latitude', 'longitude', 
+        'type', 'amenities', 'overview', 'rentDetails', 'termsOfStay', 
+        'images', 'city', 'country', 'verified', 'locality', 
+        'securityDeposit', 'utilities', 'availableFrom', 
+        'minimumStayDuration', 'nearbyUniversities'  // Added nearbyUniversities
+    ];
     console.log("city", req.body.city);
 
     try {
@@ -194,6 +212,16 @@ const editProperty = async (req, res) => {
         // Update currency if country is being updated
         if (req.body.country) {
             property.currency = COUNTRY_TO_CURRENCY[req.body.country] || 'USD';
+        }
+
+        // Handle nearbyUniversities specifically
+        if (req.body.nearbyUniversities) {
+            try {
+                property.nearbyUniversities = JSON.parse(req.body.nearbyUniversities);
+            } catch (e) {
+                console.error('Error parsing nearbyUniversities:', e);
+                property.nearbyUniversities = [];
+            }
         }
 
         // Initialize a fresh array for images
@@ -252,19 +280,15 @@ const getUniversitiesByLocation = async (req, res) => {
     try {
         const { city, country } = req.query;
         
-        // Validate the request parameters
-        if (!country) {
-            return res.status(400).send({ error: 'Country is required', universities: [] });
-        }
-        
-        console.log(`Received request for universities in ${city || 'any city'}, ${country}`);
+        // No longer requiring country parameter
+        console.log(`Received request for universities in ${city || 'any city'}${country ? ', ' + country : ''}`);
         
         // Fetch universities using our utility function
         // The utility now handles all special cases and fallbacks internally
         const universities = await fetchUniversities(country, city);
         
         // Log results for debugging
-        console.log(`Returning ${universities.length} universities for ${city || 'any city'}, ${country}`);
+        console.log(`Returning ${universities.length} universities for ${city || 'any city'}${country ? ', ' + country : ''}`);
         
         // Always return a 200 status with the universities array (which might be empty)
         res.status(200).send(universities);

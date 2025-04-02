@@ -4,19 +4,29 @@ const axios = require('axios');
  * Fetch universities from the public API based on country
  * Based on Hipo's University Domains List API
  * 
- * @param {string} country - Country name to filter universities
+ * @param {string} country - Country name to filter universities (optional)
  * @param {string} city - Optional city name to filter universities further
  * @returns {Promise<Array>} - Array of universities
  */
-const fetchUniversities = async (country, city = null) => {
+const fetchUniversities = async (country = null, city = null) => {
     try {
         // Base URL for the universities API
-        const baseUrl = 'https://universities.hipolabs.com/search';
+        const baseUrl = 'http://universities.hipolabs.com/search';
         
-        // Prepare query parameters - only search by country
-        const params = { country };
+        // Prepare query parameters
+        const params = {};
         
-        console.log(`Fetching universities for country: ${country}, city: ${city || 'N/A'}`);
+        // Only add country to params if it's provided
+        if (country) {
+            params.country = country;
+        }
+        
+        // If city is provided but no country, we'll search by name instead
+        if (city && !country) {
+            params.name = city;
+        }
+        
+        console.log(`Fetching universities for ${country ? 'country: ' + country : 'all countries'}, city: ${city || 'N/A'}`);
         
         // Make the API call
         const response = await axios.get(baseUrl, { 
@@ -28,14 +38,14 @@ const fetchUniversities = async (country, city = null) => {
             }
         });
         
-        // Get all universities for the country
+        // Get all universities from the response
         let universities = response.data || [];
         
-        console.log(`Found ${universities.length} universities in ${country}`);
+        console.log(`Found ${universities.length} universities in the initial search`);
         
-        // If no universities found for the country, return an empty array
+        // If no universities found, return an empty array or hardcoded data
         if (universities.length === 0) {
-            console.log(`No universities found for country: ${country}`);
+            console.log(`No universities found for ${country ? 'country: ' + country : 'all countries'}, city: ${city || 'N/A'}`);
             return getHardcodedUniversities(city, country);
         }
         
@@ -78,6 +88,7 @@ const fetchUniversities = async (country, city = null) => {
                 'ottawa': ['ottawa', 'carleton'],
                 'waterloo': ['waterloo', 'wilfrid laurier'],
                 'calgary': ['calgary'],
+                'london': ['western', 'london', 'huron', 'kings'],
                 'new york': ['new york', 'nyu', 'columbia', 'fordham', 'pace'],
                 'boston': ['boston', 'harvard', 'mit', 'northeastern'],
                 'chicago': ['chicago', 'northwestern', 'loyola', 'depaul'],
@@ -101,7 +112,7 @@ const fetchUniversities = async (country, city = null) => {
             
             // Try to find universities using city keywords
             const matchTerms = cityToUniversityMap[lowerCityName] || [lowerCityName];
-            const termMatchedUniversities = response.data.filter(uni => {
+            const termMatchedUniversities = universities.filter(uni => {
                 const uniName = uni.name.toLowerCase();
                 return matchTerms.some(term => uniName.includes(term));
             });
@@ -114,7 +125,7 @@ const fetchUniversities = async (country, city = null) => {
             // If still no results, try partial word matching (for cases like "San" matching "San Francisco State")
             const words = lowerCityName.split(/\s+/);
             if (words.length > 0) {
-                const wordMatchedUniversities = response.data.filter(uni => {
+                const wordMatchedUniversities = universities.filter(uni => {
                     const uniName = uni.name.toLowerCase();
                     return words.some(word => 
                         word.length > 2 && uniName.includes(word) // Only use words with more than 2 characters
@@ -131,7 +142,7 @@ const fetchUniversities = async (country, city = null) => {
             return getHardcodedUniversities(city, country);
         }
         
-        // If no city specified, return all universities for the country
+        // If no city specified, return all universities for the country or the search
         return formatUniversities(universities);
     } catch (error) {
         console.error('Error fetching universities:', error.message);

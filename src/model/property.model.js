@@ -161,16 +161,18 @@ const propertySchema = new mongoose.Schema({
         type: [String],
         default: [],
         set: function(universities) {
-            // Handle case where universities is a JSON string
-            if (typeof universities === 'string' && universities.startsWith('[') && universities.endsWith(']')) {
+            if (typeof universities === 'string') {
                 try {
                     return JSON.parse(universities);
                 } catch (e) {
                     console.error('Error parsing nearbyUniversities:', e);
-                    return universities;
+                    return Array.isArray(universities) ? universities : [universities];
                 }
             }
-            return universities;
+            return Array.isArray(universities) ? universities : [];
+        },
+        get: function(universities) {
+            return Array.isArray(universities) ? universities : [];
         }
     }
 });
