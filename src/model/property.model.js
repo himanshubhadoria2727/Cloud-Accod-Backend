@@ -72,11 +72,11 @@ const propertySchema = new mongoose.Schema({
     },
     latitude: {
         type: Number,
-        required: true, // Required for location
+        required: false, // Required for location
     },
     longitude: {
         type: Number,
-        required: true, // Required for location
+        required: false, // Required for location
     },
     type: {
         type: String,

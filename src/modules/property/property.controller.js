@@ -199,7 +199,7 @@ const editProperty = async (req, res) => {
         'type', 'amenities', 'overview', 'rentDetails', 'termsOfStay', 
         'images', 'city', 'country', 'verified', 'locality', 
         'securityDeposit', 'utilities', 'availableFrom', 
-        'minimumStayDuration', 'nearbyUniversities'  // Added nearbyUniversities
+        'minimumStayDuration', 'nearbyUniversities', 'location'  // Added 'location' here
     ];
     console.log("city", req.body.city);
 
