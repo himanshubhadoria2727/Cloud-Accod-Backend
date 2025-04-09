@@ -46,6 +46,7 @@ const createProperty = async (req, res) => {
         const property = new Property({
             ...propertyData,
             images, // Add images to the property data
+            verified: false, // Set verified to false by default
         });
 
         await property.save();
@@ -75,7 +76,8 @@ const getAllProperties = async (req, res) => {
             roomType,
             bathroomType,
             kitchenType,
-            sortBy
+            sortBy,
+            verified  // Set default value to 'true'
         } = req.query;
 
         // If id is provided, use findById to get single property
@@ -164,6 +166,11 @@ const getAllProperties = async (req, res) => {
         if (kitchenType && kitchenType.length > 0) {
             const types = typeof kitchenType === 'string' ? [kitchenType] : kitchenType;
             searchCriteria['overview.kitchenType'] = { $in: types };
+        }
+
+        // Add verified filter
+        if (verified){
+        searchCriteria.verified = verified;
         }
 
         // Handle sorting
@@ -280,22 +287,33 @@ const getUniversitiesByLocation = async (req, res) => {
     try {
         const { city, country } = req.query;
         
-        // No longer requiring country parameter
         console.log(`Received request for universities in ${city || 'any city'}${country ? ', ' + country : ''}`);
         
-        // Fetch universities using our utility function
-        // The utility now handles all special cases and fallbacks internally
+        // IMPORTANT: The fetchUniversities function expects (country, city) parameters
+        // This was the issue - we were passing parameters in the wrong order
         const universities = await fetchUniversities(country, city);
+        
+        // If no universities found, return a message with 404 status
+        if (!universities || universities.length === 0) {
+            console.log(`No universities found for ${city || 'any city'}${country ? ', ' + country : ''}`);
+            return res.status(404).json({ 
+                message: 'No universities found for the selected location.',
+                query: { city, country }
+            });
+        }
         
         // Log results for debugging
         console.log(`Returning ${universities.length} universities for ${city || 'any city'}${country ? ', ' + country : ''}`);
         
-        // Always return a 200 status with the universities array (which might be empty)
-        res.status(200).send(universities);
+        // Return universities with 200 status
+        res.status(200).json(universities);
     } catch (error) {
         console.error('Error in getUniversitiesByLocation controller:', error);
-        // Return an empty array instead of an error to prevent frontend issues
-        res.status(200).send([]);
+        // Return a proper error message
+        res.status(500).json({ 
+            message: 'Error retrieving universities', 
+            error: error.message 
+        });
     }
 };
 

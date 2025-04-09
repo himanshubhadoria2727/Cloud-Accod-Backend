@@ -385,54 +385,54 @@ const getUserDetails = async (req, res) => {
 
 const updateUser = async (req, res) => {
   try {
-    // Extract user ID from the request body
-    const { userId } = req.body;
-    console.log("userid", userId);
+    const { userId, profilePicture, ...updateData } = req.body;
+    
     if (!userId) {
-      console.error("User ID is missing in the request body");
       return res.status(400).json({ message: "User ID is required." });
     }
 
-    // Find the user by ID in the database
+    // Find the user by ID
     const user = await User.findById(userId);
     if (!user) {
-      console.error(`User not found with ID: ${userId}`);
       return res.status(404).json({ message: "User not found." });
     }
 
-    // Extract fields from the request body to update
-    const {
-      phone_no,
-      plan,
-      email,
-      firstname,
-      lastname,
-      password,
-      country_code,
-      country_name,
-    } = req.body;
+    // Update basic fields
+    Object.assign(user, updateData);
 
-    // Update user fields only if they are provided
-    if (phone_no !== undefined) user.phone_no = phone_no;
-    if (plan !== undefined) user.plan = plan;
-    if (email !== undefined) user.email = email; // Check for undefined to allow empty strings
-    if (firstname !== undefined) user.firstname = firstname;
-    if (lastname !== undefined) user.lastname = lastname;
-    if (password !== undefined) {
-      // Hash the password if needed
-      // Example: user.password = await bcrypt.hash(password, 10);
-      user.password = password; // Placeholder; hash the password before saving in a real scenario
+    // Handle base64 profile picture if provided
+    if (profilePicture) {
+      // Extract the base64 data
+      const base64Data = profilePicture.split(';base64,').pop();
+      if (base64Data) {
+        // Generate unique filename
+        const fileName = `${Date.now()}-profile.png`;
+        const filePath = `uploads/${fileName}`;
+        
+        // Save the file
+        require('fs').writeFileSync(filePath, base64Data, { encoding: 'base64' });
+        
+        // Update user profile picture URL
+        user.profilePicture = `/uploads/${fileName}`;
+      }
     }
-    if (country_code !== undefined) user.country_code = country_code;
-    if (country_name !== undefined) user.country_name = country_name;
 
-    // Save the updated user details to the database
+    // Save the updated user
     const updatedUser = await user.save();
 
-    // Respond with the updated user details
-    return res.status(200).json({ user: updatedUser });
+    // Return sanitized user object
+    const userResponse = { ...updatedUser.toObject() };
+    delete userResponse.password;
+    delete userResponse.otp;
+    delete userResponse.otp_expire;
+
+    return res.status(200).json({
+      message: "User updated successfully",
+      user: userResponse
+    });
+
   } catch (err) {
-    console.error("Error updating user details:", err); // Log the full error object
+    console.error("Error updating user:", err);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
