@@ -29,39 +29,52 @@ const Property = require('../../model/property.model');
 // Create a payment intent
 const createPaymentIntent = async (req, res) => {
   try {
-    // Check if Stripe is properly initialized
     if (!stripe) {
+      console.error('Stripe not initialized');
       return res.status(500).json({ 
         error: 'Stripe Configuration Error', 
         message: 'Stripe is not properly initialized'
       });
     }
 
-    const { bookingDetails } = req.body;
+    const { amount, bookingDetails } = req.body;
     
-    if (!bookingDetails) {
-      return res.status(400).json({ error: 'Booking details are required' });
+    if (!amount || !bookingDetails) {
+      return res.status(400).json({ 
+        error: 'Invalid Request', 
+        message: 'Amount and booking details are required' 
+      });
     }
 
-    // Calculate the amount in cents
-    const amount = Math.round(bookingDetails.price * 100);
+    const amountInCents = Math.round(parseFloat(amount) * 100);
 
-    // Create payment intent
+    // Create new payment intent with booking details in metadata
     const paymentIntent = await stripe.paymentIntents.create({
-      amount,
-      currency: bookingDetails?.currency,
+      amount: amountInCents,
+      currency: 'inr',
+      payment_method_types: ['card'],
+      capture_method: 'automatic',
       metadata: {
         bookingDetails: JSON.stringify(bookingDetails)
       }
     });
 
+    console.log('Created payment intent:', {
+      id: paymentIntent.id,
+      amount: paymentIntent.amount,
+      status: paymentIntent.status
+    });
+    
     res.status(200).json({
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id
     });
   } catch (error) {
     console.error('Error creating payment intent:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: 'Payment Intent Creation Failed',
+      message: error.message
+    });
   }
 };
 
@@ -74,33 +87,102 @@ const confirmPayment = async (req, res) => {
       return res.status(400).json({ error: 'Payment Intent ID is required' });
     }
 
-    // Retrieve the payment intent from Stripe to verify its status
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-
-    // Check if the payment was successful
-    if (paymentIntent.status === 'succeeded') {
-      // Create the booking from the metadata
-      const bookingDetails = JSON.parse(paymentIntent.metadata.bookingDetails);
-      
-      const newBooking = new Booking({
-        ...bookingDetails,
-        paymentIntentId,
-        paymentStatus: 'completed',
-        status: 'confirmed'
+    if (!stripe) {
+      return res.status(500).json({ 
+        error: 'Stripe Configuration Error', 
+        message: 'Stripe is not properly initialized'
       });
+    }
 
-      await newBooking.save();
+    try {
+      // Validate payment intent ID format
+      if (!paymentIntentId.startsWith('pi_')) {
+        return res.status(400).json({ 
+          error: 'Invalid Payment Intent ID',
+          message: 'The provided payment intent ID is not valid'
+        });
+      }
 
-      res.status(200).json({
-        success: true,
-        booking: newBooking
-      });
-    } else {
-      res.status(400).json({ error: 'Payment was not successful' });
+      // Retrieve the payment intent from Stripe to verify its status
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+      // Check if payment intent exists and is valid
+      if (!paymentIntent) {
+        return res.status(404).json({
+          error: 'Payment Not Found',
+          message: 'The payment could not be found'
+        });
+      }
+
+      // Check if the payment was successful
+      if (paymentIntent.status === 'succeeded') {
+        // Parse booking details from metadata
+        const bookingDetails = JSON.parse(paymentIntent.metadata.bookingDetails);
+        
+        // Validate required booking details
+        if (!bookingDetails.propertyId || !bookingDetails.userId) {
+          throw new Error('Missing required booking details');
+        }
+
+        // Create new booking with all required fields
+        const newBooking = new Booking({
+          userId: bookingDetails.userId,
+          name: bookingDetails.name,
+          email: bookingDetails.email,
+          phone: bookingDetails.phone,
+          rentalDays: bookingDetails.rentalDays,
+          moveInMonth: bookingDetails.moveInMonth,
+          propertyId: bookingDetails.propertyId,
+          price: bookingDetails.price,
+          paymentIntentId,
+          paymentStatus: 'completed',
+          status: 'confirmed'
+        });
+
+        // Save booking first
+        const savedBooking = await newBooking.save();
+        console.log('New booking created:', savedBooking._id);
+
+        // Update property availability
+        const property = await Property.findById(bookingDetails.propertyId);
+        if (!property) {
+          throw new Error('Property not found');
+        }
+
+        property.isAvailable = false;
+        property.currentBookingId = savedBooking._id;
+        await property.save();
+        console.log('Property availability updated:', property._id);
+
+        res.status(200).json({
+          success: true,
+          booking: savedBooking
+        });
+      } else {
+        res.status(400).json({ 
+          error: 'Payment not successful', 
+          status: paymentIntent.status,
+          message: `Payment status is ${paymentIntent.status}`
+        });
+      }
+    } catch (stripeError) {
+      // Handle specific Stripe errors
+      if (stripeError.type === 'StripeInvalidRequestError') {
+        return res.status(404).json({
+          error: 'Payment Not Found',
+          message: 'The payment intent could not be found. It may have expired or been cancelled.',
+          details: stripeError.message
+        });
+      }
+      throw stripeError; // Re-throw other errors to be caught by outer catch
     }
   } catch (error) {
     console.error('Error confirming payment:', error);
-    res.status(500).json({ error: 'An error occurred while confirming payment' });
+    res.status(500).json({ 
+      error: 'Payment Confirmation Failed',
+      message: error.message,
+      details: error.type || 'unknown_error'
+    });
   }
 };
 

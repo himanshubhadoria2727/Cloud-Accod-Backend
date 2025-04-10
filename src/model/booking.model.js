@@ -2,6 +2,10 @@ const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema(
   {
+    userId: {
+      type: String,
+      required: true,
+    },
     name: {
       type: String,
       required: true,
@@ -71,4 +75,4 @@ const bookingSchema = new mongoose.Schema(
 );
 
 const Booking = mongoose.model('Booking', bookingSchema);
-module.exports = Booking; 
+module.exports = Booking;

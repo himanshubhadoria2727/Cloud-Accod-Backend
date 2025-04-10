@@ -4,6 +4,7 @@ const Property = require('../../model/property.model');
 
 // Validation schema for the booking form
 const bookingSchema = Joi.object({
+  userId: Joi.string().required(),
   name: Joi.string().required().min(3).max(50),
   email: Joi.string().email().required(),
   phone: Joi.string().required(),
@@ -30,6 +31,7 @@ const createBooking = async (req, res) => {
 
     // Create a new booking record
     const newBooking = new Booking({
+      userId: req.body.userId,
       name: req.body.name,
       email: req.body.email,
       phone: req.body.phone,
@@ -56,10 +58,20 @@ const createBooking = async (req, res) => {
 // Get all bookings
 const getBookings = async (req, res) => {
   try {
-    // Fetch all bookings with property details
+    console.log('Fetching bookings...');
+    // Fetch all bookings with more detailed property details
     const bookings = await Booking.find()
-      .populate('propertyId', 'title location price')
+      .populate({
+        path: 'propertyId',
+        select: 'title location price images' // Add any other fields you need
+      })
       .sort({ createdAt: -1 });
+
+    console.log('Fetched bookings:', bookings.length);
+
+    if (!bookings || bookings.length === 0) {
+      console.log('No bookings found');
+    }
 
     // Return the list of bookings
     res.status(200).json({
@@ -67,8 +79,11 @@ const getBookings = async (req, res) => {
       bookings: bookings,
     });
   } catch (error) {
-    console.error('Error fetching bookings:', error);
-    res.status(500).json({ error: 'An error occurred while fetching bookings.' });
+    console.error('Error details:', error);
+    res.status(500).json({ 
+      error: 'An error occurred while fetching bookings.',
+      details: error.message 
+    });
   }
 };
 
@@ -145,4 +160,4 @@ module.exports = {
   getBookingById,
   updateBookingStatus,
   deleteBooking,
-}; 
+};
