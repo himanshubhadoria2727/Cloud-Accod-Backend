@@ -42,6 +42,11 @@ const bookingSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    currency: {
+      type: String,
+      required: true,
+      default: 'inr'
+    },
     // Payment related fields
     paymentStatus: {
       type: String,

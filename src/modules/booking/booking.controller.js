@@ -107,6 +107,27 @@ const getBookingById = async (req, res) => {
   }
 };
 
+// Get bookings for a specific user
+const getUserBookings = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const bookings = await Booking.find({ userId })
+      .populate({
+        path: 'propertyId',
+        select: 'title location price images'
+      })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      message: 'User bookings fetched successfully!',
+      bookings: bookings,
+    });
+  } catch (error) {
+    console.error('Error fetching user bookings:', error);
+    res.status(500).json({ error: 'An error occurred while fetching user bookings.' });
+  }
+};
+
 // Update booking status
 const updateBookingStatus = async (req, res) => {
   try {
@@ -158,6 +179,7 @@ module.exports = {
   createBooking,
   getBookings,
   getBookingById,
+  getUserBookings,
   updateBookingStatus,
   deleteBooking,
 };

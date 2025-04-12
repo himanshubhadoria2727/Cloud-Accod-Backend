@@ -51,9 +51,10 @@ const createPaymentIntent = async (req, res) => {
     // Create new payment intent with booking details in metadata
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
-      currency: 'inr',
-      payment_method_types: ['card'],
-      capture_method: 'automatic',
+      currency: bookingDetails.currency ,
+      automatic_payment_methods: {
+        enabled: true
+      },
       metadata: {
         bookingDetails: JSON.stringify(bookingDetails)
       }
@@ -81,13 +82,16 @@ const createPaymentIntent = async (req, res) => {
 // Confirm payment success
 const confirmPayment = async (req, res) => {
   try {
+    console.log('Starting payment confirmation with payload:', req.body);
     const { paymentIntentId } = req.body;
 
     if (!paymentIntentId) {
+      console.error('Payment confirmation failed: No paymentIntentId provided');
       return res.status(400).json({ error: 'Payment Intent ID is required' });
     }
 
     if (!stripe) {
+      console.error('Payment confirmation failed: Stripe not initialized');
       return res.status(500).json({ 
         error: 'Stripe Configuration Error', 
         message: 'Stripe is not properly initialized'
@@ -97,30 +101,44 @@ const confirmPayment = async (req, res) => {
     try {
       // Validate payment intent ID format
       if (!paymentIntentId.startsWith('pi_')) {
+        console.error('Invalid payment intent ID format:', paymentIntentId);
         return res.status(400).json({ 
           error: 'Invalid Payment Intent ID',
           message: 'The provided payment intent ID is not valid'
         });
       }
 
-      // Retrieve the payment intent from Stripe to verify its status
+      console.log('Retrieving payment intent from Stripe:', paymentIntentId);
       const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      console.log('Payment intent retrieved:', {
+        status: paymentIntent.status,
+        amount: paymentIntent.amount,
+        metadata: paymentIntent.metadata
+      });
 
-      // Check if payment intent exists and is valid
       if (!paymentIntent) {
+        console.error('Payment intent not found:', paymentIntentId);
         return res.status(404).json({
           error: 'Payment Not Found',
           message: 'The payment could not be found'
         });
       }
 
-      // Check if the payment was successful
       if (paymentIntent.status === 'succeeded') {
+        console.log('Payment succeeded, processing booking...');
         // Parse booking details from metadata
-        const bookingDetails = JSON.parse(paymentIntent.metadata.bookingDetails);
+        let bookingDetails;
+        try {
+          bookingDetails = JSON.parse(paymentIntent.metadata.bookingDetails);
+          console.log('Parsed booking details:', bookingDetails);
+        } catch (parseError) {
+          console.error('Failed to parse booking details:', parseError);
+          throw new Error('Invalid booking details format in payment metadata');
+        }
         
         // Validate required booking details
         if (!bookingDetails.propertyId || !bookingDetails.userId) {
+          console.error('Missing required booking details:', bookingDetails);
           throw new Error('Missing required booking details');
         }
 
@@ -134,31 +152,37 @@ const confirmPayment = async (req, res) => {
           moveInMonth: bookingDetails.moveInMonth,
           propertyId: bookingDetails.propertyId,
           price: bookingDetails.price,
+          currency: bookingDetails.currency || 'inr', // Add currency
           paymentIntentId,
           paymentStatus: 'completed',
-          status: 'confirmed'
+          status: 'confirmed',
+          createdAt: new Date(),
+          paymentDate: new Date()
         });
 
-        // Save booking first
+        console.log('Attempting to save booking:', newBooking);
         const savedBooking = await newBooking.save();
-        console.log('New booking created:', savedBooking._id);
+        console.log('Booking saved successfully:', savedBooking._id);
 
         // Update property availability
+        console.log('Updating property availability:', bookingDetails.propertyId);
         const property = await Property.findById(bookingDetails.propertyId);
         if (!property) {
+          console.error('Property not found:', bookingDetails.propertyId);
           throw new Error('Property not found');
         }
 
         property.isAvailable = false;
         property.currentBookingId = savedBooking._id;
         await property.save();
-        console.log('Property availability updated:', property._id);
+        console.log('Property availability updated successfully');
 
         res.status(200).json({
           success: true,
           booking: savedBooking
         });
       } else {
+        console.error('Payment not successful:', paymentIntent.status);
         res.status(400).json({ 
           error: 'Payment not successful', 
           status: paymentIntent.status,
@@ -166,7 +190,7 @@ const confirmPayment = async (req, res) => {
         });
       }
     } catch (stripeError) {
-      // Handle specific Stripe errors
+      console.error('Stripe operation failed:', stripeError);
       if (stripeError.type === 'StripeInvalidRequestError') {
         return res.status(404).json({
           error: 'Payment Not Found',
@@ -174,14 +198,14 @@ const confirmPayment = async (req, res) => {
           details: stripeError.message
         });
       }
-      throw stripeError; // Re-throw other errors to be caught by outer catch
+      throw stripeError;
     }
   } catch (error) {
-    console.error('Error confirming payment:', error);
+    console.error('Payment confirmation failed:', error);
     res.status(500).json({ 
       error: 'Payment Confirmation Failed',
       message: error.message,
-      details: error.type || 'unknown_error'
+      details: error.stack
     });
   }
 };
