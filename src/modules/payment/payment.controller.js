@@ -1,26 +1,31 @@
 // Check if Stripe secret key is available
-if (!process.env.STRIPE_SECRET_KEY) {
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+
+if (!STRIPE_SECRET_KEY) {
   console.error('STRIPE_SECRET_KEY is not defined in environment variables');
+  throw new Error('Stripe secret key is required');
 }
-
-// Check if the key is a placeholder
-if (process.env.STRIPE_SECRET_KEY === 'REPLACE_WITH_YOUR_ACTUAL_STRIPE_SECRET_KEY') {
-  console.error('STRIPE_SECRET_KEY is still set to the placeholder value. Please replace it with your actual Stripe secret key.');
-}
-
-// Log the first few characters of the key for debugging (don't log the full key for security)
-console.log('Stripe Secret Key (first 8 chars):', process.env.STRIPE_SECRET_KEY ? process.env.STRIPE_SECRET_KEY.substring(0, 8) + '...' : 'undefined');
 
 // Initialize Stripe with error handling
 let stripe;
 try {
-  stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+  stripe = require('stripe')(STRIPE_SECRET_KEY, {
+    apiVersion: '2023-10-16', // Specify the latest API version
+  });
+
   // Test the connection
-  stripe.paymentMethods.list({ limit: 1 })
+  stripe.paymentMethods.list({ 
+    limit: 1 
+  }, {
+    headers: {
+      'Authorization': `Bearer ${STRIPE_SECRET_KEY}`
+    }
+  })
     .then(() => console.log('Stripe connection successful'))
     .catch(err => console.error('Stripe connection test failed:', err.message));
 } catch (error) {
   console.error('Failed to initialize Stripe:', error.message);
+  throw error;
 }
 
 const Booking = require('../../model/booking.model');
@@ -45,7 +50,7 @@ const createPaymentIntent = async (req, res) => {
     // Create new payment intent with proper currency handling
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
-      currency: 'inr',
+      currency: currency,
       automatic_payment_methods: {
         enabled: true,
       },
