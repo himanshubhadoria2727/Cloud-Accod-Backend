@@ -110,21 +110,36 @@ const getBookingById = async (req, res) => {
 // Get bookings for a specific user
 const getUserBookings = async (req, res) => {
   try {
-    const userId = req.params.userId;
-    const bookings = await Booking.find({ userId })
+    // Extract userId from URL parameter
+    const { id: userId } = req.params;
+    console.log('Request URL userId:', userId);
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // Fetch bookings with propertyId populated
+    const bookings = await Booking.find({ userId: userId })
       .populate({
         path: 'propertyId',
-        select: 'title location price images'
+        select: 'title location price images currency'
       })
       .sort({ createdAt: -1 });
 
+    console.log(`Found ${bookings.length} bookings for user ${userId}`);
+
+    // Always return a 200 status, with empty array if no bookings
     res.status(200).json({
-      message: 'User bookings fetched successfully!',
-      bookings: bookings,
+      message: bookings.length ? 'User bookings fetched successfully!' : 'No bookings found',
+      bookings: bookings
     });
+
   } catch (error) {
     console.error('Error fetching user bookings:', error);
-    res.status(500).json({ error: 'An error occurred while fetching user bookings.' });
+    res.status(500).json({ 
+      error: 'An error occurred while fetching user bookings.',
+      details: error.message 
+    });
   }
 };
 
