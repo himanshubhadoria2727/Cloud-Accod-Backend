@@ -168,10 +168,10 @@ const getAllProperties = async (req, res) => {
             searchCriteria['overview.kitchenType'] = { $in: types };
         }
 
-        // Add verified filter
-        if (verified){
-        searchCriteria.verified = verified;
-        }
+        // // Add verified filter
+        // if (verified){
+        // searchCriteria.verified = verified;
+        // }
 
         // Handle sorting
         let sortOptions = {};
