@@ -4,7 +4,7 @@ const API_ENDPOINTS = {
     GOOGLE_PLACES: 'https://maps.googleapis.com/maps/api/place/textsearch/json'
 };
 
-const API_KEY = GOOGLE_PLACES_API_KEY; // Replace with your actual Google Places API key
+const API_KEY = process.env.GOOGLE_PLACES_API_KEY; // Replace with your actual Google Places API key
 
 /**
  * Fetch universities from Google Places API based on country and city.
