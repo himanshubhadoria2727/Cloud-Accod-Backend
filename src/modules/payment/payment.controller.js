@@ -38,22 +38,16 @@ const createPaymentIntent = async (req, res) => {
     }
 
     const { amount, bookingDetails } = req.body;
+    const currency = bookingDetails.currency?.toLowerCase() || 'inr';
     
-    if (!amount || !bookingDetails) {
-      return res.status(400).json({ 
-        error: 'Invalid Request', 
-        message: 'Amount and booking details are required' 
-      });
-    }
-
     const amountInCents = Math.round(parseFloat(amount) * 100);
 
-    // Create new payment intent with booking details in metadata
+    // Create new payment intent with proper currency handling
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
-      currency: bookingDetails.currency ,
+      currency: 'inr',
       automatic_payment_methods: {
-        enabled: true
+        enabled: true,
       },
       metadata: {
         bookingDetails: JSON.stringify(bookingDetails)
@@ -153,6 +147,10 @@ const confirmPayment = async (req, res) => {
           propertyId: bookingDetails.propertyId,
           price: bookingDetails.price,
           currency: bookingDetails.currency || 'inr', // Add currency
+          securityDeposit: bookingDetails.securityDeposit || 0,
+          securityDepositPaid: bookingDetails.securityDeposit > 0,
+          lastMonthPayment: bookingDetails.lastMonthPayment || 0,
+          lastMonthPaymentPaid: bookingDetails.lastMonthPayment > 0,
           paymentIntentId,
           paymentStatus: 'completed',
           status: 'confirmed',

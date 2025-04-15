@@ -42,6 +42,14 @@ const bookingSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    securityDeposit: {
+      type: Number,
+      default: 0,
+    },
+    securityDepositPaid: {
+      type: Boolean,
+      default: false,
+    },
     currency: {
       type: String,
       required: true,
@@ -72,6 +80,14 @@ const bookingSchema = new mongoose.Schema(
     stripeCustomerId: {
       type: String,
       default: null,
+    },
+    lastMonthPayment: {
+      type: Number,
+      default: 0,
+    },
+    lastMonthPaymentPaid: {
+      type: Boolean,
+      default: false,
     },
   },
   {
