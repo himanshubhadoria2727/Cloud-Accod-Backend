@@ -1,5 +1,36 @@
 const mongoose = require('mongoose');
 
+const bedroomDetailSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: true
+    },
+    rent: {
+        type: Number,
+        required: true
+    },
+    sizeSqFt: {
+        type: Number,
+        required: true
+    },
+    furnished: {
+        type: Boolean,
+        default: false
+    },
+    privateWashroom: {
+        type: Boolean,
+        default: false
+    },
+    sharedWashroom: {
+        type: Boolean,
+        default: false
+    },
+    sharedKitchen: {
+        type: Boolean,
+        default: false
+    }
+});
+
 const overviewSchema = new mongoose.Schema({
     bedrooms: {
         type: Number,
@@ -39,6 +70,10 @@ const overviewSchema = new mongoose.Schema({
         default: 'private',
         required: true,
     },
+    bedroomDetails: {
+        type: [bedroomDetailSchema],
+        default: []
+    }
 });
 
 const propertySchema = new mongoose.Schema({
@@ -103,6 +138,10 @@ const propertySchema = new mongoose.Schema({
         type: String, // You can change this to a more specific type if needed
         required: true, // Required to provide terms of stay
     },
+    cancellationPolicy: {
+        type: String,
+        required: true,
+    },
     location: {
         type: String,
         required: true, 
@@ -122,6 +161,10 @@ const propertySchema = new mongoose.Schema({
     verified: {
         type: Boolean,
         default: false,
+    },
+    onSiteVerification: {
+        type: Boolean,
+        default: false
     },
     createdAt: {
         type: Date,
@@ -174,6 +217,28 @@ const propertySchema = new mongoose.Schema({
         get: function(universities) {
             return Array.isArray(universities) ? universities : [];
         }
+    },
+    bookingOptions: {
+        allowSecurityDeposit: {
+            type: Boolean,
+            default: false
+        },
+        allowFirstRent: {
+            type: Boolean,
+            default: false
+        },
+        allowFirstAndLastRent: {
+            type: Boolean,
+            default: false
+        }
+    },
+    instantBooking: {
+        type: Boolean,
+        default: false
+    },
+    bookByEnquiry: {
+        type: Boolean,
+        default: false
     }
 });
 
