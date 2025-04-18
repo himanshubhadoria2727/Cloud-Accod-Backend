@@ -211,6 +211,7 @@ const getAllProperties = async (req, res) => {
 // Function to edit a property
 const editProperty = async (req, res) => {
     const updates = Object.keys(req.body);
+    
     const allowedUpdates = [
         'title', 'description', 'price', 'latitude', 'longitude', 
         'type', 'amenities', 'overview', 'rentDetails', 'termsOfStay', 
@@ -219,6 +220,8 @@ const editProperty = async (req, res) => {
         'minimumStayDuration', 'nearbyUniversities', 'location',
         'bedroomDetails', 'bookingOptions'
     ];
+
+    console.log("city", req.body.city);
 
     try {
         const property = await Property.findById(req.params.id);
@@ -241,16 +244,6 @@ const editProperty = async (req, res) => {
             }
         }
 
-        // Handle booking options
-        if (req.body.bookingOptions) {
-            try {
-                property.bookingOptions = JSON.parse(req.body.bookingOptions);
-            } catch (e) {
-                console.error('Error parsing bookingOptions:', e);
-                property.bookingOptions = {};
-            }
-        }
-
         // Handle bedroomDetails specifically
         if (req.body.bedroomDetails) {
             try {
@@ -261,42 +254,32 @@ const editProperty = async (req, res) => {
             }
         }
 
-        // Image handling
-        let allImages = [...property.images]; // Start with existing images
+        // Initialize a fresh array for images
+        let allImages = [];
 
-        // Handle existing images that should be kept (from form data)
-        if (req.body.existingImages) {
-            const existingImages = Array.isArray(req.body.existingImages) 
-                ? req.body.existingImages 
-                : [req.body.existingImages];
-                
-            // Only keep images that are in the existingImages array
-            allImages = allImages.filter(img => existingImages.includes(img));
+        // Check if images are provided in the payload (URLs)
+        if (req.body.images && Array.isArray(req.body.images)) {
+            // Add only valid URLs to the allImages array
+            allImages = req.body.images.filter(url => url.startsWith('http://') || url.startsWith('https://'));
         }
 
-        // Handle new file uploads
+        // Handle image uploads (binary)
         if (req.files && req.files.length > 0) {
-            const newImageUrls = req.files.map(file => getImageUrl(file.filename));
-            allImages = [...allImages, ...newImageUrls];
+            const uploadedImageUrls = req.files.map((file) => {
+                // Generate URL for each uploaded file
+                return `${req.protocol}://${req.get('host')}/media/${file.filename}`;
+            });
+            // Add uploaded image URLs to the allImages array
+            allImages = [...allImages, ...uploadedImageUrls];
         }
 
-        // Update the property's images
-        property.images = [...new Set(allImages)]; // Remove any duplicates
+        // Override the images array with the new payload
+        property.images = [...new Set(allImages)]; // Ensure uniqueness
 
         // Update other fields
         updates.forEach((update) => {
             if (allowedUpdates.includes(update) && update !== 'images') {
-                if (req.body[update]) {
-                    try {
-                        // Attempt to parse JSON fields
-                        property[update] = update === 'overview' || update === 'amenities' || update === 'utilities'
-                            ? JSON.parse(req.body[update])
-                            : req.body[update];
-                    } catch (e) {
-                        // If parsing fails, use the value as is
-                        property[update] = req.body[update];
-                    }
-                }
+                property[update] = req.body[update];
             }
         });
 
