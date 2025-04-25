@@ -28,6 +28,10 @@ const bedroomDetailSchema = new mongoose.Schema({
     sharedKitchen: {
         type: Boolean,
         default: false
+    },
+    images: {
+        type: [String],
+        default: []
     }
 });
 

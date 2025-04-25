@@ -28,7 +28,11 @@ app.use('/media', express.static(path.join(__dirname, 'media')));
 
 const upload = multer({ 
     storage: storage,
-    fileFilter: fileFilter
+    fileFilter: fileFilter,
+    limits: {
+        fieldSize: 20 * 1024 * 1024, // 20MB for field values
+        fileSize: 10 * 1024 * 1024   // 10MB for individual files
+    }
 });
 
 const getImageUrl = (filename) => {

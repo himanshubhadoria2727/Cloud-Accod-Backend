@@ -24,7 +24,8 @@ const createProperty = async (req, res) => {
             propertyData.currency = COUNTRY_TO_CURRENCY[propertyData.country] || 'USD';
         }
 
-        // Handle nearbyUniversities properly
+        // Handle JSON parsed fields from form data
+        // Handle nearbyUniversities
         if (propertyData.nearbyUniversities) {
             try {
                 propertyData.nearbyUniversities = JSON.parse(propertyData.nearbyUniversities);
@@ -34,23 +35,56 @@ const createProperty = async (req, res) => {
             }
         }
 
-        // Handle bedroomDetails
-        if (propertyData.bedroomDetails) {
+        // Handle overview object including bedroomDetails
+        if (propertyData.overview) {
             try {
-                propertyData.overview.bedroomDetails = JSON.parse(propertyData.bedroomDetails);
+                propertyData.overview = JSON.parse(propertyData.overview);
             } catch (e) {
-                console.error('Error parsing bedroomDetails:', e);
-                propertyData.overview.bedroomDetails = [];
+                console.error('Error parsing overview:', e);
+                propertyData.overview = {};
             }
         }
 
-        // Ensure arrays are properly handled
-        if (propertyData.utilities && !Array.isArray(propertyData.utilities)) {
-            propertyData.utilities = [propertyData.utilities];
+        // Handle bookingOptions if present
+        if (propertyData.bookingOptions) {
+            try {
+                propertyData.bookingOptions = JSON.parse(propertyData.bookingOptions);
+            } catch (e) {
+                console.error('Error parsing bookingOptions:', e);
+                propertyData.bookingOptions = {};
+            }
+        }
+
+        // Handle arrays
+        if (propertyData.amenities) {
+            try {
+                propertyData.amenities = JSON.parse(propertyData.amenities);
+            } catch (e) {
+                console.error('Error parsing amenities:', e);
+                propertyData.amenities = [];
+            }
+        }
+
+        if (propertyData.utilities) {
+            try {
+                propertyData.utilities = JSON.parse(propertyData.utilities);
+            } catch (e) {
+                console.error('Error parsing utilities:', e);
+                propertyData.utilities = [];
+            }
+        }
+
+        // Handle boolean conversions
+        if (propertyData.instantBooking) {
+            propertyData.instantBooking = propertyData.instantBooking === "true";
         }
         
-        if (propertyData.amenities && !Array.isArray(propertyData.amenities)) {
-            propertyData.amenities = [propertyData.amenities];
+        if (propertyData.bookByEnquiry) {
+            propertyData.bookByEnquiry = propertyData.bookByEnquiry === "true";
+        }
+        
+        if (propertyData.onSiteVerification) {
+            propertyData.onSiteVerification = propertyData.onSiteVerification === "true";
         }
 
         const property = new Property({
@@ -216,7 +250,7 @@ const editProperty = async (req, res) => {
         'title', 'description', 'price', 'latitude', 'longitude', 
         'type', 'amenities', 'overview', 'rentDetails', 'termsOfStay', 
         'cancellationPolicy', 'images', 'city', 'country', 'verified', 'locality', 
-        'securityDeposit', 'utilities', 'availableFrom', 
+        'securityDeposit', 'utilities', 'availableFrom', 'existingImages',
         'minimumStayDuration', 'nearbyUniversities', 'location',
         'bedroomDetails', 'bookingOptions'
     ];
@@ -244,41 +278,159 @@ const editProperty = async (req, res) => {
             }
         }
 
-        // Handle bedroomDetails specifically
-        if (req.body.bedroomDetails) {
+        // Handle overview specifically if it's a JSON string
+        if (req.body.overview) {
             try {
-                property.overview.bedroomDetails = JSON.parse(req.body.bedroomDetails);
+                const parsedOverview = JSON.parse(req.body.overview);
+                
+                // Update the property overview with the parsed data
+                property.overview = {
+                    ...property.overview,
+                    ...parsedOverview
+                };
+                
+                // At this point, bedroom images are already in the bedroomDetails array
+                // The frontend sends the bedroom details with images field containing existing image URLs
             } catch (e) {
-                console.error('Error parsing bedroomDetails:', e);
-                property.overview.bedroomDetails = [];
+                console.error('Error parsing overview:', e);
             }
         }
 
-        // Initialize a fresh array for images
+        // Handle bookingOptions if it's a JSON string
+        if (req.body.bookingOptions) {
+            try {
+                property.bookingOptions = JSON.parse(req.body.bookingOptions);
+            } catch (e) {
+                console.error('Error parsing bookingOptions:', e);
+            }
+        }
+
+        // Initialize a fresh array for main property images
         let allImages = [];
 
-        // Check if images are provided in the payload (URLs)
+        // First, check if existingImages were provided in the request
+        if (req.body.existingImages) {
+            // Handle both single string and array of strings cases
+            const existingImages = Array.isArray(req.body.existingImages) 
+                ? req.body.existingImages 
+                : [req.body.existingImages];
+            
+            // Add existing images to allImages array
+            allImages = [...allImages, ...existingImages];
+        } else if (!req.files || req.files.length === 0) {
+            // If no new images are uploaded and no existingImages provided, 
+            // keep the current images to prevent data loss
+            allImages = property.images;
+        }
+          
+        // Check if new images are provided in the payload (URLs)
         if (req.body.images && Array.isArray(req.body.images)) {
             // Add only valid URLs to the allImages array
-            allImages = req.body.images.filter(url => url.startsWith('http://') || url.startsWith('https://'));
+            const validUrls = req.body.images.filter(url => url && (url.startsWith('http://') || url.startsWith('https://')));
+            allImages = [...allImages, ...validUrls];
         }
-
-        // Handle image uploads (binary)
+          
+        // Process uploaded property images
         if (req.files && req.files.length > 0) {
-            const uploadedImageUrls = req.files.map((file) => {
-                // Generate URL for each uploaded file
-                return `${req.protocol}://${req.get('host')}/media/${file.filename}`;
+            console.log(`Processing ${req.files.length} files`);
+            
+            // All files are now uploaded with the same fieldname 'images'
+            // We determine bedroom images using metadata fields
+            
+            // Create a map of image indices to bedroom indices
+            const bedroomImageMap = {};
+            Object.keys(req.body).forEach(key => {
+                if (key.startsWith('bedroom_image_index_')) {
+                    const imageIndex = parseInt(key.replace('bedroom_image_index_', ''));
+                    const bedroomIndex = parseInt(req.body[key]);
+                    bedroomImageMap[imageIndex] = bedroomIndex;
+                }
             });
-            // Add uploaded image URLs to the allImages array
-            allImages = [...allImages, ...uploadedImageUrls];
+            
+            console.log('Bedroom image mapping:', bedroomImageMap);
+            
+            // Track which images are for bedrooms vs. the main property
+            const propertyImageUrls = [];
+            const bedroomImagesByIndex = {};
+            
+            // Process each file
+            req.files.forEach((file, fileIndex) => {
+                const imageUrl = getImageUrl(file.filename);
+                
+                // Check if this image belongs to a bedroom
+                if (bedroomImageMap.hasOwnProperty(fileIndex)) {
+                    const roomIndex = bedroomImageMap[fileIndex];
+                    
+                    if (!bedroomImagesByIndex[roomIndex]) {
+                        bedroomImagesByIndex[roomIndex] = [];
+                    }
+                    
+                    // Add image URL to the array for this bedroom
+                    bedroomImagesByIndex[roomIndex].push(imageUrl);
+                } else {
+                    // This is a main property image
+                    propertyImageUrls.push(imageUrl);
+                }
+            });
+            
+            // Add property image URLs to allImages array
+            allImages = [...allImages, ...propertyImageUrls];
+            
+            // Now allImages contains main property images
+            property.images = [...new Set(allImages)]; // Ensure uniqueness
+
+            // Process bedroom images - add them to their respective bedrooms
+            Object.keys(bedroomImagesByIndex).forEach(roomIndexStr => {
+                const roomIndex = parseInt(roomIndexStr);
+                const newBedroomImages = bedroomImagesByIndex[roomIndex];
+                
+                // Make sure this bedroom exists in overview.bedroomDetails
+                if (roomIndex < property.overview.bedroomDetails.length) {
+                    // Get existing images or initialize empty array
+                    const existingImages = property.overview.bedroomDetails[roomIndex].images || [];
+                    
+                    // Add new images to existing ones
+                    property.overview.bedroomDetails[roomIndex].images = [
+                        ...existingImages,
+                        ...newBedroomImages
+                    ];
+                }
+            });
+        } else {
+            // If no new images uploaded, set property images to allImages (which may include existing images)
+            property.images = [...new Set(allImages)]; // Ensure uniqueness
         }
 
-        // Override the images array with the new payload
-        property.images = [...new Set(allImages)]; // Ensure uniqueness
+        // Handle arrays if they're strings
+        if (req.body.amenities) {
+            try {
+                property.amenities = JSON.parse(req.body.amenities);
+            } catch (e) {
+                console.error('Error parsing amenities:', e);
+                property.amenities = [];
+            }
+        }
+
+        if (req.body.utilities) {
+            try {
+                property.utilities = JSON.parse(req.body.utilities);
+            } catch (e) {
+                console.error('Error parsing utilities:', e);
+                property.utilities = [];
+            }
+        }
 
         // Update other fields
         updates.forEach((update) => {
-            if (allowedUpdates.includes(update) && update !== 'images') {
+            if (allowedUpdates.includes(update) && 
+                update !== 'images' && 
+                update !== 'existingImages' && 
+                update !== 'overview' &&
+                update !== 'nearbyUniversities' &&
+                update !== 'amenities' &&
+                update !== 'utilities' &&
+                update !== 'bookingOptions' &&
+                update !== 'bedroomDetails') {
                 property[update] = req.body[update];
             }
         });
@@ -348,3 +500,5 @@ module.exports = {
     deleteProperty,
     getUniversitiesByLocation,
 };
+
+
