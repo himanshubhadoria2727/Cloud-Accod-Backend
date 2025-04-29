@@ -55,6 +55,16 @@ const bookingSchema = new mongoose.Schema(
       required: true,
       default: 'inr'
     },
+    // Bedroom details
+    bedroomName: {
+      type: String,
+      default: null,
+    },
+    bedroomStatus: {
+      type: String,
+      enum: ['available', 'reserved', 'occupied', 'unavailable'],
+      default: 'available'
+    },
     // Payment related fields
     paymentStatus: {
       type: String,

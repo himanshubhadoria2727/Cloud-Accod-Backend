@@ -281,18 +281,30 @@ const editProperty = async (req, res) => {
         // Handle overview specifically if it's a JSON string
         if (req.body.overview) {
             try {
-                const parsedOverview = JSON.parse(req.body.overview);
+                // Try to parse the overview
+                let parsedOverview;
+                try {
+                    parsedOverview = JSON.parse(req.body.overview);
+                } catch (parseError) {
+                    console.error('Error parsing overview as JSON:', parseError);
+                    // If overview is not a valid JSON string, use it as is
+                    parsedOverview = req.body.overview;
+                    console.log('Using overview as is:', typeof parsedOverview);
+                }
                 
                 // Update the property overview with the parsed data
-                property.overview = {
-                    ...property.overview,
-                    ...parsedOverview
-                };
-                
-                // At this point, bedroom images are already in the bedroomDetails array
-                // The frontend sends the bedroom details with images field containing existing image URLs
+                if (typeof parsedOverview === 'object') {
+                    property.overview = {
+                        ...property.overview,
+                        ...parsedOverview
+                    };
+                    
+                    console.log("Updated overview:", property.overview);
+                } else {
+                    console.error('Overview is not an object:', parsedOverview);
+                }
             } catch (e) {
-                console.error('Error parsing overview:', e);
+                console.error('Error processing overview:', e);
             }
         }
 

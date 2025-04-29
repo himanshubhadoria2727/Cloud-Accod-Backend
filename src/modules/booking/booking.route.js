@@ -7,6 +7,7 @@ const {
   updateBookingStatus,
   deleteBooking,
   getUserBookings,
+  getPropertyBookings,
 } = require('./booking.controller');
 
 const router = express.Router();
@@ -19,6 +20,9 @@ router.get('/all', Authenticateuser, getBookings);
 
 // Update the user bookings route to use the authenticated user
 router.get('/user/:id', Authenticateuser, getUserBookings);
+
+// Get bookings for a specific property
+router.get('/property/:id', Authenticateuser, getPropertyBookings);
 
 // Get a single booking by ID
 router.get('/:id', Authenticateuser, getBookingById);

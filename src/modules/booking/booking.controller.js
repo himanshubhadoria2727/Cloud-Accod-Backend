@@ -12,6 +12,8 @@ const bookingSchema = Joi.object({
   moveInMonth: Joi.string().required(),
   propertyId: Joi.string().required(),
   price: Joi.number().required(),
+  bedroomName: Joi.string().allow(null, ''),
+  selectedBedroomName: Joi.string().allow(null, ''),
 });
 
 // Create a new booking
@@ -39,6 +41,8 @@ const createBooking = async (req, res) => {
       moveInMonth: req.body.moveInMonth,
       propertyId: req.body.propertyId,
       price: req.body.price,
+      bedroomName: req.body.bedroomName || req.body.selectedBedroomName || null,
+      bedroomStatus: 'reserved', // Set initial status as reserved
     });
 
     // Save the booking to the database
@@ -143,6 +147,38 @@ const getUserBookings = async (req, res) => {
   }
 };
 
+// Get bookings for a specific property
+const getPropertyBookings = async (req, res) => {
+  try {
+    // Extract propertyId from URL parameter
+    const { id: propertyId } = req.params;
+    console.log('Request URL propertyId:', propertyId);
+
+    if (!propertyId) {
+      return res.status(400).json({ error: 'Property ID is required' });
+    }
+
+    // Fetch bookings for the property
+    const bookings = await Booking.find({ propertyId: propertyId })
+      .sort({ createdAt: -1 });
+
+    console.log(`Found ${bookings.length} bookings for property ${propertyId}`);
+
+    // Always return a 200 status, with empty array if no bookings
+    res.status(200).json({
+      message: bookings.length ? 'Property bookings fetched successfully!' : 'No bookings found for this property',
+      bookings: bookings
+    });
+
+  } catch (error) {
+    console.error('Error fetching property bookings:', error);
+    res.status(500).json({ 
+      error: 'An error occurred while fetching property bookings.',
+      details: error.message 
+    });
+  }
+};
+
 // Update booking status
 const updateBookingStatus = async (req, res) => {
   try {
@@ -195,6 +231,7 @@ module.exports = {
   getBookings,
   getBookingById,
   getUserBookings,
+  getPropertyBookings,
   updateBookingStatus,
   deleteBooking,
 };

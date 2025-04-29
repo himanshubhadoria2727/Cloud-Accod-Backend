@@ -32,6 +32,28 @@ const bedroomDetailSchema = new mongoose.Schema({
     images: {
         type: [String],
         default: []
+    },
+    availableFrom: {
+        type: String,
+        enum: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+        required: false
+    },
+    lease: {
+        type: String,
+        enum: ['Month-to-Month', '6-Month', '1-Year'],
+        required: false
+    },
+    moveInDate: {
+        type: Date,
+        required: false
+    },
+    note: {
+        type: String,
+        required: false
+    },
+    leaseTerms: {
+        type: String,
+        required: false
     }
 });
 
