@@ -25,13 +25,16 @@ const createBooking = async (req, res) => {
       return res.status(400).json({ error: error.details[0].message });
     }
 
+    // Log the incoming request body for debugging
+    console.log('Creating booking with data:', JSON.stringify(req.body, null, 2));
+
     // Check if the property exists
     const property = await Property.findById(req.body.propertyId);
     if (!property) {
       return res.status(404).json({ error: 'Property not found' });
     }
 
-    // Create a new booking record
+    // Create a new booking record with all details
     const newBooking = new Booking({
       userId: req.body.userId,
       name: req.body.name,
@@ -41,9 +44,17 @@ const createBooking = async (req, res) => {
       moveInMonth: req.body.moveInMonth,
       propertyId: req.body.propertyId,
       price: req.body.price,
+      securityDeposit: req.body.securityDeposit || 0,
+      securityDepositPaid: (req.body.securityDeposit > 0),
+      lastMonthPayment: req.body.lastMonthPayment || 0,
+      lastMonthPaymentPaid: (req.body.lastMonthPayment > 0),
+      currency: req.body.currency || 'inr',
       bedroomName: req.body.bedroomName || req.body.selectedBedroomName || null,
       bedroomStatus: 'reserved', // Set initial status as reserved
     });
+
+    // Log the booking being created
+    console.log('Saving new booking with bedroom name:', newBooking.bedroomName);
 
     // Save the booking to the database
     await newBooking.save();

@@ -159,6 +159,8 @@ const confirmPayment = async (req, res) => {
           paymentIntentId,
           paymentStatus: 'completed',
           status: 'confirmed',
+          bedroomName: bookingDetails.bedroomName || bookingDetails.selectedBedroomName || null,
+          bedroomStatus: 'reserved',
           createdAt: new Date(),
           paymentDate: new Date()
         });
@@ -250,22 +252,60 @@ const handleWebhook = async (req, res) => {
 // Helper function to handle successful payments
 const handleSuccessfulPayment = async (paymentIntent) => {
   try {
-    const bookingId = paymentIntent.metadata.bookingId;
-    if (!bookingId) return;
-
-    const booking = await Booking.findById(bookingId);
-    if (!booking) return;
-
-    booking.paymentStatus = 'completed';
-    booking.status = 'confirmed';
-    booking.paymentMethod = paymentIntent.payment_method_types[0];
-    booking.paymentDate = new Date();
+    console.log('Handling successful payment:', paymentIntent.id);
     
-    if (paymentIntent.customer) {
-      booking.stripeCustomerId = paymentIntent.customer;
+    // Check if booking already exists for this payment
+    const existingBooking = await Booking.findOne({ paymentIntentId: paymentIntent.id });
+    if (existingBooking) {
+      console.log('Booking already exists for this payment:', existingBooking._id);
+      return; // Don't create duplicate bookings
     }
+
+    // Extract booking details from metadata
+    if (!paymentIntent.metadata.bookingDetails) {
+      console.error('No booking details found in metadata');
+      return;
+    }
+
+    const bookingDetails = JSON.parse(paymentIntent.metadata.bookingDetails);
     
-    await booking.save();
+    // Create new booking
+    const newBooking = new Booking({
+      userId: bookingDetails.userId,
+      name: bookingDetails.name,
+      email: bookingDetails.email,
+      phone: bookingDetails.phone,
+      rentalDays: bookingDetails.rentalDays,
+      moveInMonth: bookingDetails.moveInMonth,
+      propertyId: bookingDetails.propertyId,
+      price: bookingDetails.price,
+      currency: bookingDetails.currency || 'inr',
+      securityDeposit: bookingDetails.securityDeposit || 0,
+      securityDepositPaid: bookingDetails.securityDeposit > 0,
+      lastMonthPayment: bookingDetails.lastMonthPayment || 0,
+      lastMonthPaymentPaid: bookingDetails.lastMonthPayment > 0,
+      paymentIntentId: paymentIntent.id,
+      paymentStatus: 'completed',
+      status: 'confirmed',
+      bedroomName: bookingDetails.bedroomName || bookingDetails.selectedBedroomName || null,
+      bedroomStatus: 'reserved',
+      createdAt: new Date(),
+      paymentDate: new Date()
+    });
+
+    const savedBooking = await newBooking.save();
+    console.log('New booking created via webhook:', savedBooking._id);
+
+    // Update property availability if needed
+    if (bookingDetails.propertyId) {
+      const property = await Property.findById(bookingDetails.propertyId);
+      if (property) {
+        property.isAvailable = false;
+        property.currentBookingId = savedBooking._id;
+        await property.save();
+        console.log('Property availability updated via webhook');
+      }
+    }
   } catch (error) {
     console.error('Error handling successful payment webhook:', error);
   }
