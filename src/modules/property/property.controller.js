@@ -38,11 +38,57 @@ const createProperty = async (req, res) => {
         // Handle overview object including bedroomDetails
         if (propertyData.overview) {
             try {
-                propertyData.overview = JSON.parse(propertyData.overview);
+                // Ensure overview is parsed to object if it's a string
+                if (typeof propertyData.overview === 'string') {
+                    propertyData.overview = JSON.parse(propertyData.overview);
+                }
+                
+                // Ensure all required fields are present and converted to proper types
+                if (propertyData.overview) {
+                    // Convert numeric fields to numbers
+                    propertyData.overview.bedrooms = Number(propertyData.overview.bedrooms);
+                    propertyData.overview.bathrooms = Number(propertyData.overview.bathrooms);
+                    propertyData.overview.squareFeet = Number(propertyData.overview.squareFeet);
+                    propertyData.overview.yearOfConstruction = Number(propertyData.overview.yearOfConstruction);
+                    
+                    // Ensure kitchen is present (could be a string or a number)
+                    if (propertyData.overview.kitchen !== undefined) {
+                        // Convert to number if possible, otherwise keep as string
+                        propertyData.overview.kitchen = !isNaN(propertyData.overview.kitchen) 
+                            ? Number(propertyData.overview.kitchen) 
+                            : propertyData.overview.kitchen;
+                    }
+                    
+                    // Process bedroom details if present
+                    if (propertyData.overview.bedroomDetails && Array.isArray(propertyData.overview.bedroomDetails)) {
+                        propertyData.overview.bedroomDetails = propertyData.overview.bedroomDetails.map(bedroom => {
+                            // Convert numeric values
+                            return {
+                                ...bedroom,
+                                rent: Number(bedroom.rent),
+                                sizeSqFt: Number(bedroom.sizeSqFt),
+                                // Convert boolean values
+                                furnished: bedroom.furnished === true || bedroom.furnished === "true",
+                                privateWashroom: bedroom.privateWashroom === true || bedroom.privateWashroom === "true",
+                                sharedWashroom: bedroom.sharedWashroom === true || bedroom.sharedWashroom === "true",
+                                sharedKitchen: bedroom.sharedKitchen === true || bedroom.sharedKitchen === "true"
+                            };
+                        });
+                    }
+                    
+                    // Log the processed overview for debugging
+                    console.log("Processed overview:", propertyData.overview);
+                }
             } catch (e) {
-                console.error('Error parsing overview:', e);
-                propertyData.overview = {};
+                console.error('Error processing overview:', e);
+                return res.status(400).send({ 
+                    error: 'Invalid overview data format. Please check your submission.',
+                    details: e.message,
+                    receivedOverview: propertyData.overview
+                });
             }
+        } else {
+            return res.status(400).send({ error: 'Overview data is required' });
         }
 
         // Handle bookingOptions if present
@@ -97,7 +143,7 @@ const createProperty = async (req, res) => {
         console.log("Property created successfully");
         res.status(201).send(property);
     } catch (error) {
-        console.error("Error creating property", error);
+        console.error("Error creating property:", error);
         res.status(400).send(error);
     }
 };
@@ -284,27 +330,74 @@ const editProperty = async (req, res) => {
                 // Try to parse the overview
                 let parsedOverview;
                 try {
-                    parsedOverview = JSON.parse(req.body.overview);
+                    if (typeof req.body.overview === 'string') {
+                        parsedOverview = JSON.parse(req.body.overview);
+                    } else {
+                        parsedOverview = req.body.overview;
+                    }
                 } catch (parseError) {
                     console.error('Error parsing overview as JSON:', parseError);
-                    // If overview is not a valid JSON string, use it as is
-                    parsedOverview = req.body.overview;
-                    console.log('Using overview as is:', typeof parsedOverview);
+                    return res.status(400).send({ error: 'Invalid overview format' });
+                }
+                
+                // Validate that all required fields are present
+                // Check for kitchen value - should accept "0" as a valid value
+                if (!parsedOverview.bedrooms && parsedOverview.bedrooms !== 0 || 
+                    !parsedOverview.bathrooms && parsedOverview.bathrooms !== 0 || 
+                    !parsedOverview.squareFeet && parsedOverview.squareFeet !== 0 || 
+                    (parsedOverview.kitchen === undefined || parsedOverview.kitchen === null) ||  // Allow "0" as valid
+                    !parsedOverview.yearOfConstruction && parsedOverview.yearOfConstruction !== 0) {
+                    return res.status(400).send({ 
+                        error: 'Missing required overview fields',
+                        message: 'Overview must include bedrooms, bathrooms, squareFeet, kitchen, and yearOfConstruction',
+                        receivedValues: {
+                            bedrooms: parsedOverview.bedrooms,
+                            bathrooms: parsedOverview.bathrooms,
+                            squareFeet: parsedOverview.squareFeet,
+                            kitchen: parsedOverview.kitchen,
+                            yearOfConstruction: parsedOverview.yearOfConstruction
+                        }
+                    });
+                }
+                
+                // Convert numeric fields to numbers
+                parsedOverview.bedrooms = Number(parsedOverview.bedrooms);
+                parsedOverview.bathrooms = Number(parsedOverview.bathrooms);
+                parsedOverview.squareFeet = Number(parsedOverview.squareFeet);
+                parsedOverview.yearOfConstruction = Number(parsedOverview.yearOfConstruction);
+                
+                // Handle kitchen field (could be string or number)
+                if (parsedOverview.kitchen !== undefined) {
+                    // Convert to number if possible, otherwise keep as string
+                    parsedOverview.kitchen = !isNaN(parsedOverview.kitchen) 
+                        ? Number(parsedOverview.kitchen) 
+                        : parsedOverview.kitchen;
+                }
+                
+                // Process bedroom details if present
+                if (parsedOverview.bedroomDetails && Array.isArray(parsedOverview.bedroomDetails)) {
+                    parsedOverview.bedroomDetails = parsedOverview.bedroomDetails.map(bedroom => {
+                        // Convert numeric values
+                        return {
+                            ...bedroom,
+                            rent: Number(bedroom.rent),
+                            sizeSqFt: Number(bedroom.sizeSqFt),
+                            // Convert boolean values
+                            furnished: bedroom.furnished === true || bedroom.furnished === "true",
+                            privateWashroom: bedroom.privateWashroom === true || bedroom.privateWashroom === "true",
+                            sharedWashroom: bedroom.sharedWashroom === true || bedroom.sharedWashroom === "true",
+                            sharedKitchen: bedroom.sharedKitchen === true || bedroom.sharedKitchen === "true"
+                        };
+                    });
                 }
                 
                 // Update the property overview with the parsed data
-                if (typeof parsedOverview === 'object') {
-                    property.overview = {
-                        ...property.overview,
-                        ...parsedOverview
-                    };
-                    
-                    console.log("Updated overview:", property.overview);
-                } else {
-                    console.error('Overview is not an object:', parsedOverview);
-                }
+                property.overview = parsedOverview;
+                
+                console.log("Updated overview:", property.overview);
             } catch (e) {
                 console.error('Error processing overview:', e);
+                return res.status(400).send({ error: 'Failed to process overview', details: e.message });
             }
         }
 
