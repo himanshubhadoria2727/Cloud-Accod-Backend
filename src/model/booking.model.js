@@ -6,7 +6,21 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // Personal Information
     name: {
+      type: String,
+      required: true,
+    },
+    dateOfBirth: {
+      type: Date,
+      required: true,
+    },
+    gender: {
+      type: String,
+      enum: ['male', 'female', 'other'],
+      required: true,
+    },
+    nationality: {
       type: String,
       required: true,
     },
@@ -19,6 +33,33 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // Address Information
+    address: {
+      type: String,
+      required: true,
+    },
+    addressLine2: {
+      type: String,
+    },
+    // Booking Dates
+    leaseStart: {
+      type: Date,
+      required: true,
+    },
+    leaseEnd: {
+      type: Date,
+    },
+    moveInDate: {
+      type: Date,
+      required: true,
+    },
+    moveOutDate: {
+      type: Date,
+    },
+    country: {
+      type: String,
+      required: true,
+    },
     rentalDays: {
       type: Number,
       required: true,
@@ -28,6 +69,28 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // University Information
+    universityName: {
+      type: String,
+    },
+    courseName: {
+      type: String,
+    },
+    universityAddress: {
+      type: String,
+    },
+    enrollmentStatus: {
+      type: String,
+    },
+    // Medical Information
+    hasMedicalConditions: {
+      type: Boolean,
+      default: false,
+    },
+    medicalDetails: {
+      type: String,
+    },
+    // Property Information
     propertyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Property',
@@ -38,6 +101,7 @@ const bookingSchema = new mongoose.Schema(
       enum: ['pending', 'confirmed', 'cancelled'],
       default: 'pending',
     },
+    // Pricing Information
     price: {
       type: Number,
       required: true,

@@ -1,19 +1,52 @@
-const Joi = require('joi');
-const Booking = require('../../model/booking.model');
-const Property = require('../../model/property.model');
+const Joi = require("joi");
+const Booking = require("../../model/booking.model");
+const Property = require("../../model/property.model");
 
 // Validation schema for the booking form
 const bookingSchema = Joi.object({
+  // Personal Information
   userId: Joi.string().required(),
   name: Joi.string().required().min(3).max(50),
+  dateOfBirth: Joi.date().required(),
+  gender: Joi.string().valid("male", "female", "other").required(),
+  nationality: Joi.string().required(),
   email: Joi.string().email().required(),
   phone: Joi.string().required(),
+
+  // Address Information
+  address: Joi.string().required(),
+  addressLine2: Joi.string().allow("", null),
+
+  // Booking Dates
+  leaseStart: Joi.date().required(),
+  leaseEnd: Joi.date().allow(null),
+  moveInDate: Joi.date().required(),
+  moveOutDate: Joi.date().allow(null),
   rentalDays: Joi.number().required().min(1),
   moveInMonth: Joi.string().required(),
+
+  // University Information
+  universityName: Joi.string().allow("", null),
+  courseName: Joi.string().allow("", null),
+  universityAddress: Joi.string().allow("", null),
+  enrollmentStatus: Joi.string().allow("", null),
+
+  // Medical Information
+  hasMedicalConditions: Joi.boolean().default(false),
+  medicalDetails: Joi.string().allow("", null),
+
+  // Property Information
   propertyId: Joi.string().required(),
   price: Joi.number().required(),
-  bedroomName: Joi.string().allow(null, ''),
-  selectedBedroomName: Joi.string().allow(null, ''),
+  currency: Joi.string().default("inr"),
+  country: Joi.string().required(),
+  stateProvince: Joi.string().allow("", null),
+  bedroomName: Joi.string().allow(null, ""),
+  selectedBedroomName: Joi.string().allow(null, ""),
+  BedRoomStatus: Joi.string().valid("booked", "available").default("available"),
+  // Optional Payment Information
+  securityDeposit: Joi.number().default(0),
+  lastMonthPayment: Joi.number().default(0),
 });
 
 // Create a new booking
@@ -26,78 +59,111 @@ const createBooking = async (req, res) => {
     }
 
     // Log the incoming request body for debugging
-    console.log('Creating booking with data:', JSON.stringify(req.body, null, 2));
+    console.log(
+      "Creating booking with data:",
+      JSON.stringify(req.body, null, 2)
+    );
 
     // Check if the property exists
     const property = await Property.findById(req.body.propertyId);
     if (!property) {
-      return res.status(404).json({ error: 'Property not found' });
-    }
-
-    // Create a new booking record with all details
+      return res.status(404).json({ error: "Property not found" });
+    } // Create a new booking record with all details
     const newBooking = new Booking({
+      // Personal Information
       userId: req.body.userId,
       name: req.body.name,
+      dateOfBirth: req.body.dateOfBirth,
+      gender: req.body.gender,
+      nationality: req.body.nationality,
       email: req.body.email,
       phone: req.body.phone,
+
+      // Address Information
+      address: req.body.address,
+      addressLine2: req.body.addressLine2,
+
+      // Booking Dates
+      leaseStart: req.body.leaseStart,
+      leaseEnd: req.body.leaseEnd,
+      moveInDate: req.body.moveInDate,
+      moveOutDate: req.body.moveOutDate,
       rentalDays: req.body.rentalDays,
       moveInMonth: req.body.moveInMonth,
+
+      // University Information
+      universityName: req.body.universityName,
+      courseName: req.body.courseName,
+      universityAddress: req.body.universityAddress,
+      enrollmentStatus: req.body.enrollmentStatus,
+      country: req.body.country,
+      stateProvince: req.body.stateProvince,
+      // Medical Information
+      hasMedicalConditions: req.body.hasMedicalConditions,
+      medicalDetails: req.body.medicalDetails,
+
+      // Property Information
       propertyId: req.body.propertyId,
       price: req.body.price,
       securityDeposit: req.body.securityDeposit || 0,
-      securityDepositPaid: (req.body.securityDeposit > 0),
+      securityDepositPaid: req.body.securityDeposit > 0,
       lastMonthPayment: req.body.lastMonthPayment || 0,
-      lastMonthPaymentPaid: (req.body.lastMonthPayment > 0),
-      currency: req.body.currency || 'inr',
+      lastMonthPaymentPaid: req.body.lastMonthPayment > 0,
+      currency: req.body.currency || "inr",
       bedroomName: req.body.bedroomName || req.body.selectedBedroomName || null,
-      bedroomStatus: 'reserved', // Set initial status as reserved
+      BedRoomStatus: req.body.bedroomName ? "booked" : "available",
     });
 
     // Log the booking being created
-    console.log('Saving new booking with bedroom name:', newBooking.bedroomName);
+    console.log(
+      "Saving new booking with bedroom name:",
+      newBooking.bedroomName
+    );
 
     // Save the booking to the database
     await newBooking.save();
 
     // Return success response
     res.status(201).json({
-      message: 'Booking created successfully!',
+      message: "Booking created successfully!",
       booking: newBooking,
     });
   } catch (error) {
-    console.error('Error creating booking:', error);
-    res.status(500).json({ error: 'An error occurred while creating your booking.' });
+    console.error("Error creating booking:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while creating your booking." });
   }
 };
 
 // Get all bookings
 const getBookings = async (req, res) => {
   try {
-    console.log('Fetching bookings...');
+    console.log("Fetching bookings...");
     // Fetch all bookings with more detailed property details
     const bookings = await Booking.find()
       .populate({
-        path: 'propertyId',
-        select: 'title location price images' // Add any other fields you need
+        path: "propertyId",
+        select: "title location price images", // Add any other fields you need
       })
       .sort({ createdAt: -1 });
 
-    console.log('Fetched bookings:', bookings.length);
+    console.log("Fetched bookings:", bookings.length);
 
     if (!bookings || bookings.length === 0) {
-      console.log('No bookings found');
+      console.log("No bookings found");
     }
 
     // Return the list of bookings
     res.status(200).json({
-      message: 'Bookings fetched successfully!',
+      message: "Bookings fetched successfully!",
       bookings: bookings,
     });
   } catch (error) {
-    console.error('Error details:', error);
-    res.status(500).json({ 
-      error: 'An error occurred while fetching bookings.',
-      details: error.message 
+    console.error("Error details:", error);
+    res.status(500).json({
+      error: "An error occurred while fetching bookings.",
+      details: error.message,
     });
   }
 };
@@ -105,20 +171,24 @@ const getBookings = async (req, res) => {
 // Get a single booking by ID
 const getBookingById = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id)
-      .populate('propertyId', 'title location price');
+    const booking = await Booking.findById(req.params.id).populate(
+      "propertyId",
+      "title location price"
+    );
 
     if (!booking) {
-      return res.status(404).json({ error: 'Booking not found' });
+      return res.status(404).json({ error: "Booking not found" });
     }
 
     res.status(200).json({
-      message: 'Booking fetched successfully!',
+      message: "Booking fetched successfully!",
       booking: booking,
     });
   } catch (error) {
-    console.error('Error fetching booking:', error);
-    res.status(500).json({ error: 'An error occurred while fetching the booking.' });
+    console.error("Error fetching booking:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching the booking." });
   }
 };
 
@@ -127,17 +197,17 @@ const getUserBookings = async (req, res) => {
   try {
     // Extract userId from URL parameter
     const { id: userId } = req.params;
-    console.log('Request URL userId:', userId);
+    console.log("Request URL userId:", userId);
 
     if (!userId) {
-      return res.status(400).json({ error: 'User ID is required' });
+      return res.status(400).json({ error: "User ID is required" });
     }
 
     // Fetch bookings with propertyId populated
     const bookings = await Booking.find({ userId: userId })
       .populate({
-        path: 'propertyId',
-        select: 'title location price images currency'
+        path: "propertyId",
+        select: "title location price images currency",
       })
       .sort({ createdAt: -1 });
 
@@ -145,15 +215,16 @@ const getUserBookings = async (req, res) => {
 
     // Always return a 200 status, with empty array if no bookings
     res.status(200).json({
-      message: bookings.length ? 'User bookings fetched successfully!' : 'No bookings found',
-      bookings: bookings
+      message: bookings.length
+        ? "User bookings fetched successfully!"
+        : "No bookings found",
+      bookings: bookings,
     });
-
   } catch (error) {
-    console.error('Error fetching user bookings:', error);
-    res.status(500).json({ 
-      error: 'An error occurred while fetching user bookings.',
-      details: error.message 
+    console.error("Error fetching user bookings:", error);
+    res.status(500).json({
+      error: "An error occurred while fetching user bookings.",
+      details: error.message,
     });
   }
 };
@@ -163,29 +234,31 @@ const getPropertyBookings = async (req, res) => {
   try {
     // Extract propertyId from URL parameter
     const { id: propertyId } = req.params;
-    console.log('Request URL propertyId:', propertyId);
+    console.log("Request URL propertyId:", propertyId);
 
     if (!propertyId) {
-      return res.status(400).json({ error: 'Property ID is required' });
+      return res.status(400).json({ error: "Property ID is required" });
     }
 
     // Fetch bookings for the property
-    const bookings = await Booking.find({ propertyId: propertyId })
-      .sort({ createdAt: -1 });
+    const bookings = await Booking.find({ propertyId: propertyId }).sort({
+      createdAt: -1,
+    });
 
     console.log(`Found ${bookings.length} bookings for property ${propertyId}`);
 
     // Always return a 200 status, with empty array if no bookings
     res.status(200).json({
-      message: bookings.length ? 'Property bookings fetched successfully!' : 'No bookings found for this property',
-      bookings: bookings
+      message: bookings.length
+        ? "Property bookings fetched successfully!"
+        : "No bookings found for this property",
+      bookings: bookings,
     });
-
   } catch (error) {
-    console.error('Error fetching property bookings:', error);
-    res.status(500).json({ 
-      error: 'An error occurred while fetching property bookings.',
-      details: error.message 
+    console.error("Error fetching property bookings:", error);
+    res.status(500).json({
+      error: "An error occurred while fetching property bookings.",
+      details: error.message,
     });
   }
 };
@@ -195,8 +268,8 @@ const updateBookingStatus = async (req, res) => {
   try {
     const { status } = req.body;
 
-    if (!['pending', 'confirmed', 'cancelled'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status value' });
+    if (!["pending", "confirmed", "cancelled"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status value" });
     }
 
     const booking = await Booking.findByIdAndUpdate(
@@ -206,16 +279,18 @@ const updateBookingStatus = async (req, res) => {
     );
 
     if (!booking) {
-      return res.status(404).json({ error: 'Booking not found' });
+      return res.status(404).json({ error: "Booking not found" });
     }
 
     res.status(200).json({
-      message: 'Booking status updated successfully!',
+      message: "Booking status updated successfully!",
       booking: booking,
     });
   } catch (error) {
-    console.error('Error updating booking status:', error);
-    res.status(500).json({ error: 'An error occurred while updating the booking status.' });
+    console.error("Error updating booking status:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while updating the booking status." });
   }
 };
 
@@ -225,15 +300,17 @@ const deleteBooking = async (req, res) => {
     const booking = await Booking.findByIdAndDelete(req.params.id);
 
     if (!booking) {
-      return res.status(404).json({ error: 'Booking not found' });
+      return res.status(404).json({ error: "Booking not found" });
     }
 
     res.status(200).json({
-      message: 'Booking deleted successfully!',
+      message: "Booking deleted successfully!",
     });
   } catch (error) {
-    console.error('Error deleting booking:', error);
-    res.status(500).json({ error: 'An error occurred while deleting the booking.' });
+    console.error("Error deleting booking:", error);
+    res
+      .status(500)
+      .json({ error: "An error occurred while deleting the booking." });
   }
 };
 
