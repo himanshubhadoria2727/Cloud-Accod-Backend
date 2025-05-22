@@ -50,8 +50,11 @@ const bedroomDetailSchema = new mongoose.Schema({
     note: {
         type: String,
         required: false
+    },    leaseTerms: {
+        type: String,
+        required: false
     },
-    leaseTerms: {
+    floor: {
         type: String,
         required: false
     }

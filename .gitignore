@@ -39,3 +39,21 @@ next-env.d.ts
 # env file
 .env
 
+# media files
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.svg
+*.webp
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.mp3
+*.wav
+*.ogg
+*.flac
+
