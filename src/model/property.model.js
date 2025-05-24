@@ -57,6 +57,11 @@ const bedroomDetailSchema = new mongoose.Schema({
     floor: {
         type: String,
         required: false
+    },
+    status: {
+        type: String,
+        enum: ['available', 'booked'],
+        default: 'available'
     }
 });
 

@@ -24,7 +24,8 @@ const bookingSchema = Joi.object({
   moveOutDate: Joi.date().allow(null),
   rentalDays: Joi.number().required().min(1),
   moveInMonth: Joi.string().required(),
-
+  leaseDuration: Joi.string().required(),
+  status: Joi.string().valid("pending", "confirmed", "cancelled").default("pending"),
   // University Information
   universityName: Joi.string().allow("", null),
   courseName: Joi.string().allow("", null),
@@ -37,14 +38,22 @@ const bookingSchema = Joi.object({
 
   // Property Information
   propertyId: Joi.string().required(),
+  bedroomId: Joi.string().allow(null, ""),
   price: Joi.number().required(),
   currency: Joi.string().default("inr"),
   country: Joi.string().required(),
   stateProvince: Joi.string().allow("", null),
   bedroomName: Joi.string().allow(null, ""),
   selectedBedroomName: Joi.string().allow(null, ""),
-  BedRoomStatus: Joi.string().valid("booked", "available").default("available"),
-  // Optional Payment Information
+  // bedroomStatus: Joi.string().valid("booked", "available").default("available"),
+  
+  // Payment Information
+  paymentIntentId: Joi.string().allow(null, ""),
+  paymentStatus: Joi.string().valid("pending", "processing", "completed", "failed", "refunded").default("pending"),
+  paymentMethod: Joi.string().allow(null, ""),
+  paymentAmount: Joi.number().default(0),
+  paymentDate: Joi.date().allow(null),
+  stripeCustomerId: Joi.string().allow(null, ""),
   securityDeposit: Joi.number().default(0),
   lastMonthPayment: Joi.number().default(0),
 });
@@ -68,7 +77,26 @@ const createBooking = async (req, res) => {
     const property = await Property.findById(req.body.propertyId);
     if (!property) {
       return res.status(404).json({ error: "Property not found" });
-    } // Create a new booking record with all details
+    }
+
+    // Update bedroom status if bedroomId is provided
+    if (req.body.bedroomId) {
+      // Find the bedroom in the bedroomDetails array
+      const bedroom = property.overview.bedroomDetails.find(
+        (bedroom) => bedroom._id.toString() === req.body.bedroomId.toString()
+      );
+      
+      if (bedroom) {
+        // Mark the bedroom as booked
+        bedroom.status = 'booked';
+        await property.save();
+        console.log(`Bedroom ${req.body.bedroomId} marked as booked`);
+      } else {
+        return res.status(404).json({ error: "Bedroom not found in the property" });
+      }
+    }
+
+    // Create a new booking record with all details
     const newBooking = new Booking({
       // Personal Information
       userId: req.body.userId,
@@ -90,6 +118,8 @@ const createBooking = async (req, res) => {
       moveOutDate: req.body.moveOutDate,
       rentalDays: req.body.rentalDays,
       moveInMonth: req.body.moveInMonth,
+      leaseDuration: req.body.leaseDuration,
+      status: req.body.status || "pending",
 
       // University Information
       universityName: req.body.universityName,
@@ -98,12 +128,14 @@ const createBooking = async (req, res) => {
       enrollmentStatus: req.body.enrollmentStatus,
       country: req.body.country,
       stateProvince: req.body.stateProvince,
+
       // Medical Information
       hasMedicalConditions: req.body.hasMedicalConditions,
       medicalDetails: req.body.medicalDetails,
 
       // Property Information
       propertyId: req.body.propertyId,
+      bedroomId: req.body.bedroomId,
       price: req.body.price,
       securityDeposit: req.body.securityDeposit || 0,
       securityDepositPaid: req.body.securityDeposit > 0,
@@ -111,7 +143,15 @@ const createBooking = async (req, res) => {
       lastMonthPaymentPaid: req.body.lastMonthPayment > 0,
       currency: req.body.currency || "inr",
       bedroomName: req.body.bedroomName || req.body.selectedBedroomName || null,
-      BedRoomStatus: req.body.bedroomName ? "booked" : "available",
+      // bedroomStatus: "booked",
+
+      // Payment Information
+      paymentIntentId: req.body.paymentIntentId,
+      paymentStatus: req.body.paymentIntentId ? "completed" : "pending",
+      paymentMethod: req.body.paymentMethod,
+      paymentAmount: req.body.paymentAmount || req.body.price,
+      paymentDate: req.body.paymentIntentId ? new Date() : null,
+      stripeCustomerId: req.body.stripeCustomerId,
     });
 
     // Log the booking being created

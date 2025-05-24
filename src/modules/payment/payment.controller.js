@@ -42,20 +42,21 @@ const createPaymentIntent = async (req, res) => {
       });
     }
 
-    const { amount, bookingDetails } = req.body;
-    const currency = bookingDetails.currency?.toLowerCase() || 'inr';
+    const { amount, currency = 'inr' } = req.body;
     
     const amountInCents = Math.round(parseFloat(amount) * 100);
 
-    // Create new payment intent with proper currency handling
+    // Create new payment intent with minimal metadata
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
-      currency: currency,
+      currency: currency.toLowerCase(),
       automatic_payment_methods: {
         enabled: true,
       },
       metadata: {
-        bookingDetails: JSON.stringify(bookingDetails)
+        // Only store essential payment-related metadata
+        amount: amount.toString(),
+        currency: currency.toLowerCase()
       }
     });
 
@@ -124,67 +125,14 @@ const confirmPayment = async (req, res) => {
       }
 
       if (paymentIntent.status === 'succeeded') {
-        console.log('Payment succeeded, processing booking...');
-        // Parse booking details from metadata
-        let bookingDetails;
-        try {
-          bookingDetails = JSON.parse(paymentIntent.metadata.bookingDetails);
-          console.log('Parsed booking details:', bookingDetails);
-        } catch (parseError) {
-          console.error('Failed to parse booking details:', parseError);
-          throw new Error('Invalid booking details format in payment metadata');
-        }
-        
-        // Validate required booking details
-        if (!bookingDetails.propertyId || !bookingDetails.userId) {
-          console.error('Missing required booking details:', bookingDetails);
-          throw new Error('Missing required booking details');
-        }
-
-        // Create new booking with all required fields
-        const newBooking = new Booking({
-          userId: bookingDetails.userId,
-          name: bookingDetails.name,
-          email: bookingDetails.email,
-          phone: bookingDetails.phone,
-          rentalDays: bookingDetails.rentalDays,
-          moveInMonth: bookingDetails.moveInMonth,
-          propertyId: bookingDetails.propertyId,
-          price: bookingDetails.price,
-          currency: bookingDetails.currency || 'inr', // Add currency
-          securityDeposit: bookingDetails.securityDeposit || 0,
-          securityDepositPaid: bookingDetails.securityDeposit > 0,
-          lastMonthPayment: bookingDetails.lastMonthPayment || 0,
-          lastMonthPaymentPaid: bookingDetails.lastMonthPayment > 0,
-          paymentIntentId,
-          paymentStatus: 'completed',
-          status: 'confirmed',
-          bedroomName: bookingDetails.bedroomName || bookingDetails.selectedBedroomName || null,
-          bedroomStatus: 'reserved',
-          createdAt: new Date(),
-          paymentDate: new Date()
-        });
-
-        console.log('Attempting to save booking:', newBooking);
-        const savedBooking = await newBooking.save();
-        console.log('Booking saved successfully:', savedBooking._id);
-
-        // Update property availability
-        console.log('Updating property availability:', bookingDetails.propertyId);
-        const property = await Property.findById(bookingDetails.propertyId);
-        if (!property) {
-          console.error('Property not found:', bookingDetails.propertyId);
-          throw new Error('Property not found');
-        }
-
-        property.isAvailable = false;
-        property.currentBookingId = savedBooking._id;
-        await property.save();
-        console.log('Property availability updated successfully');
-
         res.status(200).json({
           success: true,
-          booking: savedBooking
+          paymentIntent: {
+            id: paymentIntent.id,
+            amount: paymentIntent.amount,
+            status: paymentIntent.status,
+            metadata: paymentIntent.metadata
+          }
         });
       } else {
         console.error('Payment not successful:', paymentIntent.status);
@@ -252,60 +200,9 @@ const handleWebhook = async (req, res) => {
 // Helper function to handle successful payments
 const handleSuccessfulPayment = async (paymentIntent) => {
   try {
-    console.log('Handling successful payment:', paymentIntent.id);
-    
-    // Check if booking already exists for this payment
-    const existingBooking = await Booking.findOne({ paymentIntentId: paymentIntent.id });
-    if (existingBooking) {
-      console.log('Booking already exists for this payment:', existingBooking._id);
-      return; // Don't create duplicate bookings
-    }
-
-    // Extract booking details from metadata
-    if (!paymentIntent.metadata.bookingDetails) {
-      console.error('No booking details found in metadata');
-      return;
-    }
-
-    const bookingDetails = JSON.parse(paymentIntent.metadata.bookingDetails);
-    
-    // Create new booking
-    const newBooking = new Booking({
-      userId: bookingDetails.userId,
-      name: bookingDetails.name,
-      email: bookingDetails.email,
-      phone: bookingDetails.phone,
-      rentalDays: bookingDetails.rentalDays,
-      moveInMonth: bookingDetails.moveInMonth,
-      propertyId: bookingDetails.propertyId,
-      price: bookingDetails.price,
-      currency: bookingDetails.currency || 'inr',
-      securityDeposit: bookingDetails.securityDeposit || 0,
-      securityDepositPaid: bookingDetails.securityDeposit > 0,
-      lastMonthPayment: bookingDetails.lastMonthPayment || 0,
-      lastMonthPaymentPaid: bookingDetails.lastMonthPayment > 0,
-      paymentIntentId: paymentIntent.id,
-      paymentStatus: 'completed',
-      status: 'confirmed',
-      bedroomName: bookingDetails.bedroomName || bookingDetails.selectedBedroomName || null,
-      bedroomStatus: 'reserved',
-      createdAt: new Date(),
-      paymentDate: new Date()
-    });
-
-    const savedBooking = await newBooking.save();
-    console.log('New booking created via webhook:', savedBooking._id);
-
-    // Update property availability if needed
-    if (bookingDetails.propertyId) {
-      const property = await Property.findById(bookingDetails.propertyId);
-      if (property) {
-        property.isAvailable = false;
-        property.currentBookingId = savedBooking._id;
-        await property.save();
-        console.log('Property availability updated via webhook');
-      }
-    }
+    console.log('Payment successful:', paymentIntent.id);
+    // Here you can add any payment-specific logic if needed
+    // But no booking creation logic
   } catch (error) {
     console.error('Error handling successful payment webhook:', error);
   }
@@ -314,14 +211,8 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 // Helper function to handle failed payments
 const handleFailedPayment = async (paymentIntent) => {
   try {
-    const bookingId = paymentIntent.metadata.bookingId;
-    if (!bookingId) return;
-
-    const booking = await Booking.findById(bookingId);
-    if (!booking) return;
-
-    booking.paymentStatus = 'failed';
-    await booking.save();
+    console.log('Payment failed:', paymentIntent.id);
+    // Here you can add any payment-specific logic if needed
   } catch (error) {
     console.error('Error handling failed payment webhook:', error);
   }

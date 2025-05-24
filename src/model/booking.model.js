@@ -69,6 +69,10 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    leaseDuration: {
+      type: String,
+      required: true,
+    },
     // University Information
     universityName: {
       type: String,
@@ -95,6 +99,10 @@ const bookingSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Property',
       required: true,
+    },
+    bedroomId: {
+      type: String,
+      required: false,
     },
     status: {
       type: String,
@@ -124,11 +132,11 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-    bedroomStatus: {
-      type: String,
-      enum: ['available', 'booked'],
-      default: 'available'
-    },
+    // bedroomStatus: {
+    //   type: String,
+    //   enum: ['available', 'booked'],
+    //   default: 'available'
+    // },
     // Payment related fields
     paymentStatus: {
       type: String,
