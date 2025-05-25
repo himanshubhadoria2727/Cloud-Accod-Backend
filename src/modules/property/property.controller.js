@@ -298,7 +298,7 @@ const editProperty = async (req, res) => {
         'cancellationPolicy', 'images', 'city', 'country', 'verified', 'locality', 
         'securityDeposit', 'utilities', 'availableFrom', 'existingImages',
         'minimumStayDuration', 'nearbyUniversities', 'location',
-        'bedroomDetails', 'bookingOptions'
+        'bedroomDetails', 'bookingOptions', 'instantBooking', 'bookByEnquiry',
     ];
 
     console.log("city", req.body.city);
