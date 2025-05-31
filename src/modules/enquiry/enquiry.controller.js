@@ -3,9 +3,39 @@ const Enquiry = require('../../model/enquiry.model'); // Import the Enquiry mode
 
 // Validation schema for the enquiry form
 const enquirySchema = Joi.object({
+  // Personal Information
   name: Joi.string().required().min(3).max(50),
+  dateOfBirth: Joi.date().required(),
+  gender: Joi.string().valid('male', 'female', 'other').required(),
+  nationality: Joi.string().required(),
   email: Joi.string().email().required(),
-  message: Joi.string().required().min(10),
+  phone: Joi.string().required(),
+  address: Joi.string().required(),
+  addressLine2: Joi.string().allow(''),
+  country: Joi.string().required(),
+  stateProvince: Joi.string().required(),
+
+  // Accommodation Details
+  leaseDuration: Joi.string().required(),
+  moveInDate: Joi.date().required(),
+  moveOutDate: Joi.date().allow(null),
+
+  // University Details
+  universityName: Joi.string().required(),
+  courseName: Joi.string().required(),
+  universityAddress: Joi.string().required(),
+  enrollmentStatus: Joi.string().valid('enrolled', 'accepted', 'graduated', 'other').required(),
+
+  // Medical Information
+  hasMedicalConditions: Joi.boolean().default(false),
+  medicalDetails: Joi.string().allow(''),
+
+  // Property Information
+  propertyId: Joi.string().required(),
+  bedroomId: Joi.string().allow(''),
+  bedroomName: Joi.string().allow(''),
+  price: Joi.number(),
+  currency: Joi.string(),
 });
 
 const submitEnquiry = async (req, res) => {
@@ -18,9 +48,8 @@ const submitEnquiry = async (req, res) => {
 
     // Create a new enquiry record
     const newEnquiry = new Enquiry({
-      name: req.body.name,
-      email: req.body.email,
-      message: req.body.message,
+      ...req.body,
+      status: 'pending',
     });
 
     // Save the enquiry to the database
@@ -39,10 +68,22 @@ const submitEnquiry = async (req, res) => {
 
 const getEnquiries = async (req, res) => {
   try {
-    // Fetch all enquiries (you can add pagination, sorting, etc. if needed)
-    const enquiries = await Enquiry.find().sort({ createdAt: -1 }); // Sort by latest created
+    const { propertyId, status } = req.query;
+    let query = {};
 
-    // Return the list of enquiries
+    // Add filters if provided
+    if (propertyId) {
+      query.propertyId = propertyId;
+    }
+    if (status) {
+      query.status = status;
+    }
+
+    // Fetch enquiries with filters
+    const enquiries = await Enquiry.find(query)
+      .sort({ createdAt: -1 })
+      .populate('propertyId', 'title location images'); // Populate property details if needed
+
     res.status(200).json({
       message: 'Enquiries fetched successfully!',
       enquiries: enquiries,
@@ -53,18 +94,64 @@ const getEnquiries = async (req, res) => {
   }
 };
 
+const getEnquiryById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const enquiry = await Enquiry.findById(id)
+      .populate('propertyId', 'title location images');
+
+    if (!enquiry) {
+      return res.status(404).json({ error: 'Enquiry not found' });
+    }
+
+    res.status(200).json({
+      message: 'Enquiry fetched successfully!',
+      enquiry: enquiry,
+    });
+  } catch (error) {
+    console.error('Error fetching enquiry:', error);
+    res.status(500).json({ error: 'An error occurred while fetching the enquiry.' });
+  }
+};
+
+const updateEnquiryStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!['pending', 'approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status value' });
+    }
+
+    const updatedEnquiry = await Enquiry.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    if (!updatedEnquiry) {
+      return res.status(404).json({ error: 'Enquiry not found' });
+    }
+
+    res.status(200).json({
+      message: 'Enquiry status updated successfully!',
+      enquiry: updatedEnquiry,
+    });
+  } catch (error) {
+    console.error('Error updating enquiry status:', error);
+    res.status(500).json({ error: 'An error occurred while updating the enquiry status.' });
+  }
+};
+
 const deleteEnquiry = async (req, res) => {
   try {
     const { id } = req.params;
-
-    // Delete the enquiry by ID
     const deletedEnquiry = await Enquiry.findByIdAndDelete(id);
 
     if (!deletedEnquiry) {
       return res.status(404).json({ error: 'Enquiry not found' });
     }
 
-    // Return success response
     res.status(200).json({
       message: 'Enquiry deleted successfully!',
       enquiry: deletedEnquiry,
@@ -75,5 +162,11 @@ const deleteEnquiry = async (req, res) => {
   }
 };
 
-module.exports = { submitEnquiry, getEnquiries, deleteEnquiry };
+module.exports = {
+  submitEnquiry,
+  getEnquiries,
+  getEnquiryById,
+  updateEnquiryStatus,
+  deleteEnquiry,
+};
 
