@@ -44,7 +44,7 @@ const bookingSchema = new mongoose.Schema(
     // Booking Dates
     leaseStart: {
       type: Date,
-      required: true,
+      required: false,
     },
     leaseEnd: {
       type: Date,

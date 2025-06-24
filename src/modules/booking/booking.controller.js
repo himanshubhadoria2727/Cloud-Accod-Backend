@@ -1,6 +1,7 @@
 const Joi = require("joi");
 const Booking = require("../../model/booking.model");
 const Property = require("../../model/property.model");
+const { sendBookingConfirmation } = require("../../utils/emailService");
 
 // Validation schema for the booking form
 const bookingSchema = Joi.object({
@@ -154,19 +155,35 @@ const createBooking = async (req, res) => {
       stripeCustomerId: req.body.stripeCustomerId,
     });
 
-    // Log the booking being created
     console.log(
       "Saving new booking with bedroom name:",
       newBooking.bedroomName
     );
 
-    // Save the booking to the database
-    await newBooking.save();
+    // Save the booking
+    const savedBooking = await newBooking.save();
 
-    // Return success response
+    // Send booking confirmation email asynchronously
+    try {
+      await sendBookingConfirmation({
+        to: savedBooking.email,
+        bookingId: savedBooking._id,
+        propertyName: property?.title || 'Your Property',
+        checkInDate: savedBooking.moveInDate,
+        checkOutDate: savedBooking.moveOutDate || 'Flexible',
+        amount: `${savedBooking.currency?.toUpperCase() || 'INR'} ${savedBooking.price}`,
+        customerName: savedBooking.name
+      });
+      console.log('Booking confirmation email sent successfully');
+    } catch (emailError) {
+      console.error('Failed to send booking confirmation email:', emailError);
+      // Don't fail the request if email fails
+    }
+
     res.status(201).json({
-      message: "Booking created successfully!",
-      booking: newBooking,
+      success: true,
+      message: "Booking created successfully",
+      booking: savedBooking,
     });
   } catch (error) {
     console.error("Error creating booking:", error);
