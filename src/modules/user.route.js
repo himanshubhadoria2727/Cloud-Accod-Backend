@@ -1,6 +1,6 @@
 const express = require('express');
 const { Authenticateuser } = require('../middleware/middleware');
-const { addUser, verifyUser, login, getUser, getUserDetails,resendOtp,getAnalytics, updateUser,deleterUser, googleAuth } = require('./user.controller');
+const { addUser, verifyUser, login, getUser, getUserDetails, resendOtp, getAnalytics, updateUser, deleterUser, googleAuth, verifyEmail, resendVerification } = require('./user.controller');
 const {getMySubscriptionPlans,updateMySubscription} = require('./mySubscription/mySubscription.controller');
 const router = express.Router();
 
@@ -213,6 +213,72 @@ router.post('/login', login);
  *         description: Invalid input
  */
 router.post('/google-auth', googleAuth);
+
+/**
+ * @swagger
+ * /users/verify-email:
+ *   post:
+ *     summary: Verify user's email with OTP
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - otp
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: The email of the user
+ *               otp:
+ *                 type: string
+ *                 description: The 6-digit OTP sent to the user's email
+ *     responses:
+ *       200:
+ *         description: Email verified successfully
+ *       400:
+ *         description: Invalid OTP or email
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/verify-email', verifyEmail);
+
+/**
+ * @swagger
+ * /users/resend-verification:
+ *   post:
+ *     summary: Resend verification email with new OTP
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: The email of the user
+ *     responses:
+ *       200:
+ *         description: Verification email sent successfully
+ *       400:
+ *         description: Invalid email or user already verified
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Failed to send verification email
+ */
+router.post('/resend-verification', resendVerification);
 
 router.get('/analytics', getAnalytics);
 
