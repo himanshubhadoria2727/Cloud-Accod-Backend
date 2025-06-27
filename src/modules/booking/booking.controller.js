@@ -171,7 +171,7 @@ const createBooking = async (req, res) => {
         propertyName: property?.title || 'Your Property',
         checkInDate: savedBooking.moveInDate,
         checkOutDate: savedBooking.moveOutDate || 'Flexible',
-        amount: `${savedBooking.currency?.toUpperCase() || 'INR'} ${savedBooking.price}`,
+        amount: `${savedBooking.currency?.toUpperCase() || 'INR'} ${savedBooking.paymentAmount}`,
         customerName: savedBooking.name
       });
       console.log('Booking confirmation email sent successfully');

@@ -92,8 +92,8 @@ const sendBookingConfirmation = async ({
           <ul>
             <li><strong>Property:</strong> ${propertyName}</li>
             <li><strong>Booking ID:</strong> ${bookingId}</li>
-            <li><strong>Check-in:</strong> ${new Date(checkInDate).toLocaleDateString()}</li>
-            <li><strong>Check-out:</strong> ${checkOutDate === 'Flexible' ? 'Flexible' : new Date(checkOutDate).toLocaleDateString()}</li>
+            <li><strong>Move-in Date:</strong> ${new Date(checkInDate).toLocaleDateString()}</li>
+            // <li><strong>Check-out:</strong> ${checkOutDate === 'Flexible' ? 'Flexible' : new Date(checkOutDate).toLocaleDateString()}</li>
             <li><strong>Total Amount:</strong> ${amount}</li>
           </ul>
           

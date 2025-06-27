@@ -8,6 +8,9 @@ const sendSMS = require("../utility/send-sms");
 const { Uplan } = require("../model/user_plan.model");
 const userschema = require("../model/user.model");
 const bcrypt = require("bcryptjs");
+const { upload, getImageUrl } = require("../utility/uploadfile");
+const fs = require('fs');
+const path = require('path');
 
 // Configure email transport
 let emailTransport;
@@ -660,56 +663,54 @@ const getUserDetails = async (req, res) => {
   }
 };
 
+// Middleware for handling file upload
+const uploadProfilePicture = upload.single('profilePicture');
+
 const updateUser = async (req, res) => {
   try {
-    const { userId, profilePicture, ...updateData } = req.body;
+    const { userId, ...updateData } = req.body;
     
     if (!userId) {
       return res.status(400).json({ message: "User ID is required." });
     }
+    try {
+        // Find the user by ID
+        const user = await User.findById(userId);
+        if (!user) {
+          return res.status(404).json({ message: "User not found." });
+        }
 
-    // Find the user by ID
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
+        // If file was uploaded, update the profile picture path
+        if (req.file) {
+          // Delete old profile picture if it exists
+          if (user.profilePicture) {
+            const oldFilePath = path.join(process.cwd(), user.profilePicture.replace(/^\//, ''));
+            if (fs.existsSync(oldFilePath)) {
+              fs.unlinkSync(oldFilePath);
+            }
+          }
+          
+          // Update profile picture path with the new file
+          updateData.profilePicture = getImageUrl(req.file.filename);
+        }
 
-    // Update basic fields
-    Object.assign(user, updateData);
+        // Update user data
+        const updatedUser = await User.findByIdAndUpdate(
+          userId,
+          { $set: updateData },
+          { new: true }
+        ).select('-password -otp -otp_expire');
 
-    // Handle base64 profile picture if provided
-    if (profilePicture) {
-      // Extract the base64 data
-      const base64Data = profilePicture.split(';base64,').pop();
-      if (base64Data) {
-        // Generate unique filename
-        const fileName = `${Date.now()}-profile.png`;
-        const filePath = `uploads/${fileName}`;
-        
-        // Save the file
-        require('fs').writeFileSync(filePath, base64Data, { encoding: 'base64' });
-        
-        // Update user profile picture URL
-        user.profilePicture = `/uploads/${fileName}`;
+        return res.status(200).json({
+          message: "User updated successfully",
+          user: updatedUser
+        });
+      } catch (error) {
+        console.error("Error updating user:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
       }
-    }
-
-    // Save the updated user
-    const updatedUser = await user.save();
-
-    // Return sanitized user object
-    const userResponse = { ...updatedUser.toObject() };
-    delete userResponse.password;
-    delete userResponse.otp;
-    delete userResponse.otp_expire;
-
-    return res.status(200).json({
-      message: "User updated successfully",
-      user: userResponse
-    });
-
-  } catch (err) {
-    console.error("Error updating user:", err);
+    } catch (err) {
+    console.error("Error in updateUser:", err);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };

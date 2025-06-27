@@ -3,6 +3,7 @@ const { Authenticateuser } = require('../middleware/middleware');
 const { addUser, verifyUser, login, getUser, getUserDetails, resendOtp, getAnalytics, updateUser, deleterUser, googleAuth, verifyEmail, resendVerification } = require('./user.controller');
 const {getMySubscriptionPlans,updateMySubscription} = require('./mySubscription/mySubscription.controller');
 const router = express.Router();
+const { upload } = require('../utility/uploadfile'); // Destructure the upload object
 
 /**
  * @swagger
@@ -118,7 +119,7 @@ router.post('/register', addUser);
  *       401:
  *         description: Unauthorized
  */
-router.post('/updateUser', updateUser);
+router.post('/updateUser',Authenticateuser, upload.single('profilePicture'), updateUser);
 router.post('/resendOtp', resendOtp);
 
 /**

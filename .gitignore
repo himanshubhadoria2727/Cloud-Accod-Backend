@@ -37,7 +37,7 @@ yarn-error.log*
 next-env.d.ts
 
 # env file
-.env
+.env*
 
 # media files
 *.jpg
