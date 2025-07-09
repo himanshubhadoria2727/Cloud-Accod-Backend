@@ -10,6 +10,7 @@ const propertyRoute = require("./modules/property/property.route");
 const analyticsRoute = require("./modules/analytics/analytics.route");
 const bookingRoute = require("./modules/booking/booking.route");
 const paymentRoute = require("./modules/payment/payment.route");
+const wishlistRoute = require("./modules/wishlist/wishlist.route");
 
 const registerRoute = (app) => {
  
@@ -25,6 +26,7 @@ const registerRoute = (app) => {
   app.use("/api/analytics", analyticsRoute);
   app.use("/api/booking", bookingRoute);
   app.use("/api/payment", paymentRoute);
+  app.use("/api/wishlist", wishlistRoute);
 
 };
 
