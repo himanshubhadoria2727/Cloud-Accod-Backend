@@ -518,30 +518,27 @@ const resendOtp = async (req, res) => {
 
 const getUser = async (req, res) => {
   try {
-    // Log the entire query parameters to see what's being received
     console.log("Received Query Params:", req.query);
 
-    // Construct the search query from the request parameters
-    const query = constructSearchQuery(req.query);
-    console.log("Search Query:", JSON.stringify(query, null, 2)); // Log the constructed query
+    // ✅ Use new helper:
+    const query = buildUserSearchQuery(req.query);
 
-    const pageSize = parseInt(req.query.pageSize) || 5; // Set page size dynamically from query
-    const pageNumber = parseInt(req.query.page) || 1; // Parse page number
-    const skip = (pageNumber - 1) * pageSize; // Calculate the number of documents to skip
+    console.log("Search Query:", JSON.stringify(query, null, 2));
 
-    // Fetch the users based on the query, pagination, and limit
-    let allUser = await User.find(query)
+    const pageSize = parseInt(req.query.pageSize) || 5;
+    const pageNumber = parseInt(req.query.page) || 1;
+    const skip = (pageNumber - 1) * pageSize;
+
+    const allUser = await User.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(pageSize)
       .populate("plan");
 
-    console.log("Fetched Users:", JSON.stringify(allUser, null, 2)); // Log the fetched users
+    console.log("Fetched Users:", JSON.stringify(allUser, null, 2));
 
-    // Count total documents matching the query
     const total = await User.countDocuments(query);
 
-    // Prepare the response object
     const userRespond = {
       data: allUser,
       pagination: {
@@ -551,69 +548,39 @@ const getUser = async (req, res) => {
       },
     };
 
-    return res.status(200).json(userRespond); // Send the response
+    return res.status(200).json(userRespond);
   } catch (err) {
-    console.error("Error fetching users:", err); // Log the error
-    return res.status(500).json({ message: "Internal server error" }); // Handle error
+    console.error("Error fetching users:", err);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 
-const constructSearchQuery = (queryParams) => {
-  const constructedQuery = {};
 
-  // Date range filter (optional)
-  if (queryParams.startdate && queryParams.enddate) {
-    const startDate = new Date(queryParams.startdate);
-    const endDate = new Date(queryParams.enddate);
+const buildUserSearchQuery = (params) => {
+  const { search = "", searchField = "all" } = params;
 
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      console.error("Invalid date strings for startdate or enddate.");
-      return constructedQuery; // Return an empty query or handle the error as needed
-    }
+  if (!search || !search.trim()) return {};
 
-    endDate.setHours(23, 59, 59, 999);
+  const searchRegex = new RegExp(search.trim(), "i");
 
-    constructedQuery.createdAt = {
-      $gte: startDate,
-      $lte: endDate,
-    };
-  }
+  const searchQueries = {
+    name: { name: searchRegex },
+    email: { email: searchRegex },
+    phone: { phone: searchRegex },
+    status: { status: searchRegex },
+    plan: { plan: searchRegex }, // depends how you store plan!
+    all: {
+      $or: [
+        { name: searchRegex },
+        { email: searchRegex },
+        { phone: searchRegex },
+        { status: searchRegex },
+      ],
+    },
+  };
 
-  // Plan type filter (optional)
-  if (queryParams.freeUser) {
-    constructedQuery["plan.plantype.amount"] = { $lte: 0 };
-  }
-
-  if (queryParams.paidUser) {
-    constructedQuery["plan.plantype.amount"] = { $gt: 0 };
-  }
-
-  // Search functionality
-  if (queryParams.search) {
-    const searchRegex = new RegExp(queryParams.search, "i"); // Case-insensitive search
-    const orConditions = [];
-
-    // Check if the search term is a valid ObjectId
-    if (mongoose.isValidObjectId(queryParams.search)) {
-      orConditions.push({ _id: queryParams.search }); // Search by ID if valid
-    }
-
-    orConditions.push(
-      { phone_no: searchRegex }, // Search by phone number
-      { firstname: searchRegex }, // Search by first name
-      { lastname: searchRegex }, // Search by last name
-      { email: searchRegex } // Search by email
-    );
-
-    constructedQuery.$or = orConditions; // Assign the constructed or conditions to the query
-  }
-
-  console.log("Constructed Query:", JSON.stringify(constructedQuery, null, 2)); // Log the constructed query
-
-  return constructedQuery;
+  return searchQueries[searchField] || searchQueries.all;
 };
-
-
 
 const getUserDetails = async (req, res) => {
   try {

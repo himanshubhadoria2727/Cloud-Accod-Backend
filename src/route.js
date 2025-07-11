@@ -11,6 +11,7 @@ const analyticsRoute = require("./modules/analytics/analytics.route");
 const bookingRoute = require("./modules/booking/booking.route");
 const paymentRoute = require("./modules/payment/payment.route");
 const wishlistRoute = require("./modules/wishlist/wishlist.route");
+const getAgentRoute = require("./modules/getAgent/getAgent.route");
 
 const registerRoute = (app) => {
  
@@ -27,6 +28,7 @@ const registerRoute = (app) => {
   app.use("/api/booking", bookingRoute);
   app.use("/api/payment", paymentRoute);
   app.use("/api/wishlist", wishlistRoute);
+  app.use("/api/getAgent", getAgentRoute);
 
 };
 

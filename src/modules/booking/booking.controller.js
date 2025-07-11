@@ -195,34 +195,77 @@ const createBooking = async (req, res) => {
 
 // Get all bookings
 const getBookings = async (req, res) => {
+  const { 
+    page = 1, 
+    limit = 5, 
+    search = "", 
+    searchField = "all" 
+  } = req.query;
+
   try {
-    console.log("Fetching bookings...");
-    // Fetch all bookings with more detailed property details
-    const bookings = await Booking.find()
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    const searchFilter = buildBookingSearchQuery(search, searchField);
+
+    const bookings = await Booking.find(searchFilter)
       .populate({
         path: "propertyId",
-        select: "title location price images", // Add any other fields you need
+        select: "title location price images",
       })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
 
-    console.log("Fetched bookings:", bookings.length);
+    const totalCount = await Booking.countDocuments(searchFilter);
+    const totalPages = Math.ceil(totalCount / limitNum);
 
-    if (!bookings || bookings.length === 0) {
-      console.log("No bookings found");
-    }
-
-    // Return the list of bookings
     res.status(200).json({
       message: "Bookings fetched successfully!",
       bookings: bookings,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        totalPages: totalPages,
+        totalCount: totalCount,
+      },
     });
   } catch (error) {
-    console.error("Error details:", error);
+    console.error("Error fetching bookings:", error);
     res.status(500).json({
       error: "An error occurred while fetching bookings.",
       details: error.message,
     });
   }
+};
+
+
+const buildBookingSearchQuery = (search, searchField) => {
+  if (!search || !search.trim()) return {};
+
+  const searchRegex = new RegExp(search.trim(), 'i');
+  
+  const searchQueries = {
+    name: { name: searchRegex },
+    email: { email: searchRegex },
+    phone: { phone: searchRegex },
+    status: { status: searchRegex },
+    property: { 'propertyId.title': searchRegex },
+    moveInMonth: { moveInMonth: searchRegex },
+    all: {
+      $or: [
+        { name: searchRegex },
+        { email: searchRegex },
+        { phone: searchRegex },
+        { status: searchRegex },
+        { moveInMonth: searchRegex },
+        { 'propertyId.title': searchRegex }
+      ]
+    }
+  };
+
+  return searchQueries[searchField] || searchQueries.all;
 };
 
 // Get a single booking by ID
