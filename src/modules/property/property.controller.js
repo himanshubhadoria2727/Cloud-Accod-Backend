@@ -167,7 +167,8 @@ const getAllProperties = async (req, res) => {
             bathroomType,
             kitchenType,
             sortBy,
-            verified  // Set default value to 'true'
+            verified,
+            search
         } = req.query;
 
         // If id is provided, use findById to get single property
@@ -175,7 +176,6 @@ const getAllProperties = async (req, res) => {
             try {
                 const property = await Property.findById(id);
                 
-                // Record property view if property exists
                 if (property) {
                     try {
                         let propertyView = await PropertyView.findOne({ propertyId: id });
@@ -199,69 +199,142 @@ const getAllProperties = async (req, res) => {
             }
         }
 
-        // Build the search criteria
+        // Build search criteria with improved logic
         const searchCriteria = {};
+        const andConditions = [];
+
+        // Enhanced search functionality - searches across title, universities, cities, and localities
+        if (search) {
+            console.log('Generic search term:', search);
+            
+            // Create flexible regex patterns for common typos (especially for city names)
+            const searchPatterns = [
+                search, // Original input
+                search.replace(/(.)\1+/g, '$1'), // Remove duplicate letters (toronro -> torono)
+                search.replace(/ro/g, 'r'), // Handle ro->r substitutions
+                search.replace(/r/g, 'ro'), // Handle r->ro substitutions
+                search.replace(/o/g, 'on'), // Handle o->on substitutions (tor -> toron)
+                search.replace(/on/g, 'o'), // Handle on->o substitutions
+            ];
+            
+            // Remove duplicates and empty strings
+            const uniquePatterns = [...new Set(searchPatterns)].filter(p => p.length > 0);
+            
+            const searchOrConditions = [];
+            
+            // For each pattern, search across all relevant fields
+            uniquePatterns.forEach(pattern => {
+                const regexPattern = new RegExp(pattern, 'i');
+                
+                searchOrConditions.push(
+                    // Search in property title
+                    { title: { $regex: regexPattern } },
+                    // Search in nearby universities array
+                    { nearbyUniversities: { $elemMatch: { $regex: regexPattern } } },
+                    // Fallback for string-based university search
+                    { nearbyUniversities: { $regex: regexPattern } },
+                    // Search in description
+                    { description: { $regex: regexPattern } },
+                    // Search in city field
+                    { city: { $regex: regexPattern } },
+                    // Search in locality field
+                    { locality: { $regex: regexPattern } }
+                );
+            });
+            
+            andConditions.push({
+                $or: searchOrConditions
+            });
+        }
+        
+        // Individual filters
         if (title) {
-            searchCriteria.title = { $regex: title, $options: 'i' };
+            andConditions.push({
+                title: { $regex: title, $options: 'i' }
+            });
         }
+        
+        // Handle separate city parameter (if provided)
         if (city) {
-            searchCriteria.$or = searchCriteria.$or || [];
-            searchCriteria.$or.push(
-                { city: { $regex: new RegExp(city, 'i') } },
-                { locality: { $regex: new RegExp(city, 'i') } }
-            );
+            console.log('City search term:', city);
+            andConditions.push({
+                $or: [
+                    { city: { $regex: new RegExp(city, 'i') } },
+                    { locality: { $regex: new RegExp(city, 'i') } }
+                ]
+            });
         }
+        
         if (type) {
-            searchCriteria.type = type;
+            andConditions.push({ type: type });
         }
+        
         if (country) {
-            searchCriteria.country = country;
+            andConditions.push({ country: country });
         }
+        
         if (minPrice || maxPrice) {
-            searchCriteria.price = {};
+            const priceCondition = {};
             if (minPrice) {
-                searchCriteria.price.$gte = Number(minPrice);
+                priceCondition.$gte = Number(minPrice);
             }
             if (maxPrice) {
-                searchCriteria.price.$lte = Number(maxPrice);
+                priceCondition.$lte = Number(maxPrice);
             }
+            andConditions.push({ price: priceCondition });
         }
+        
         if (university) {
-            console.log('Searching for university:', university);
-            searchCriteria.$or = [
-                // Check within array elements
-                { nearbyUniversities: { $elemMatch: { $regex: new RegExp(university, 'i') } } },
-                // Fallback for string-based search
-                { nearbyUniversities: { $regex: new RegExp(university, 'i') } }
-            ];
+            console.log('Searching for specific university:', university);
+            andConditions.push({
+                $or: [
+                    { nearbyUniversities: { $elemMatch: { $regex: new RegExp(university, 'i') } } },
+                    { nearbyUniversities: { $regex: new RegExp(university, 'i') } }
+                ]
+            });
         }
+        
         if (locality) {
-            searchCriteria.locality = { $regex: locality, $options: 'i' };
+            andConditions.push({
+                locality: { $regex: locality, $options: 'i' }
+            });
         }
+        
         if (moveInMonth && moveInMonth.length > 0) {
             const monthsArray = typeof moveInMonth === 'string' ? [moveInMonth] : moveInMonth;
-            searchCriteria.availableFrom = { $in: monthsArray };
+            andConditions.push({ availableFrom: { $in: monthsArray } });
         }
+        
         if (stayDuration) {
-            searchCriteria.minimumStayDuration = stayDuration;
+            andConditions.push({ minimumStayDuration: stayDuration });
         }
+        
         if (roomType && roomType.length > 0) {
             const types = typeof roomType === 'string' ? [roomType] : roomType;
-            searchCriteria['overview.roomType'] = { $in: types };
+            andConditions.push({ 'overview.roomType': { $in: types } });
         }
+        
         if (bathroomType && bathroomType.length > 0) {
             const types = typeof bathroomType === 'string' ? [bathroomType] : bathroomType;
-            searchCriteria['overview.bathroomType'] = { $in: types };
+            andConditions.push({ 'overview.bathroomType': { $in: types } });
         }
+        
         if (kitchenType && kitchenType.length > 0) {
             const types = typeof kitchenType === 'string' ? [kitchenType] : kitchenType;
-            searchCriteria['overview.kitchenType'] = { $in: types };
+            andConditions.push({ 'overview.kitchenType': { $in: types } });
         }
 
-        // // Add verified filter
-        // if (verified){
-        // searchCriteria.verified = verified;
-        // }
+        // Add verified filter
+        if (verified) {
+            andConditions.push({ verified: verified === 'true' });
+        }
+
+        // Combine all conditions
+        if (andConditions.length > 0) {
+            searchCriteria.$and = andConditions;
+        }
+
+        console.log('Final search criteria:', JSON.stringify(searchCriteria, null, 2));
 
         // Handle sorting
         let sortOptions = {};
@@ -276,18 +349,23 @@ const getAllProperties = async (req, res) => {
                 case 'Newest Listings':
                     sortOptions.createdAt = -1;
                     break;
+                case 'Relevance':
+                    sortOptions.createdAt = -1;
+                    break;
                 default:
                     sortOptions.createdAt = -1;
             }
+        } else {
+            sortOptions.createdAt = -1;
         }
 
         const properties = await Property.find(searchCriteria).sort(sortOptions);
         res.status(200).send(properties);
     } catch (error) {
-        res.status(500).send(error);
+        console.error('Error in getAllProperties:', error);
+        res.status(500).send({ message: 'Internal server error', error: error.message });
     }
 };
-
 // Function to edit a property
 const editProperty = async (req, res) => {
     const updates = Object.keys(req.body);
