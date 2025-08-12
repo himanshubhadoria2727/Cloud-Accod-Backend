@@ -26,7 +26,7 @@ const corsOptions = {
       'http://localhost:8000',
       'http://localhost:8080',
       // Add your production domains here
-      'https://yourproductiondomain.com'
+      'https://cloudaccomodation.com'
     ];
     
     if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
