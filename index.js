@@ -26,6 +26,7 @@ const corsOptions = {
       'http://localhost:8000',
       'http://localhost:8080',
       // Add your production domains here
+      'https://145.223.23.97:8000',
       'https://cloudaccomodation.com'
     ];
     
