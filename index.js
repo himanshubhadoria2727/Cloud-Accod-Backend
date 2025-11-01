@@ -25,9 +25,9 @@ const corsOptions = {
       'http://localhost:3001',
       'http://localhost:8000',
       'http://localhost:8080',
-      // Add your production domains here
-      'http://145.223.23.97:8000',
-      'https://cloudaccomodation.com'
+      // Production domains
+      'https://cloudaccomodation.com',
+      'https://www.cloudaccomodation.com'
     ];
     
     if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
