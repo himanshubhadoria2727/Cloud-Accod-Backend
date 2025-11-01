@@ -1,6 +1,6 @@
 const express = require('express');
-const { Authenticateuser } = require('../middleware/middleware');
-const { addUser, verifyUser, login, getUser, getUserDetails, resendOtp, getAnalytics, updateUser, deleterUser, googleAuth, verifyEmail, resendVerification } = require('./user.controller');
+const { Authenticateuser, AuthenticateAdmin } = require('../middleware/middleware');
+const { addUser, verifyUser, login, adminLogin, getUser, getUserDetails, resendOtp, getAnalytics, updateUser, deleterUser, googleAuth, verifyEmail, resendVerification } = require('./user.controller');
 const {getMySubscriptionPlans,updateMySubscription} = require('./mySubscription/mySubscription.controller');
 const router = express.Router();
 const { upload } = require('../utility/uploadfile'); // Destructure the upload object
@@ -28,7 +28,7 @@ const { upload } = require('../utility/uploadfile'); // Destructure the upload o
  *               items:
  *                 $ref: '#/components/schemas/User'
  */
-router.get('/getUser', getUser);
+router.get('/getUser', AuthenticateAdmin, getUser);
 
 /**
  * @swagger
@@ -183,6 +183,36 @@ router.post('/login', login);
 
 /**
  * @swagger
+ * /users/admin-login:
+ *   post:
+ *     summary: Admin login (requires admin role)
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: The email of the admin user
+ *               password:
+ *                 type: string
+ *                 description: The password of the admin user
+ *     responses:
+ *       200:
+ *         description: Admin login successful
+ *       401:
+ *         description: Invalid credentials
+ *       403:
+ *         description: Access denied - Admin privileges required
+ */
+router.post('/admin-login', adminLogin);
+
+/**
+ * @swagger
  * /users/google-auth:
  *   post:
  *     summary: Google authentication
@@ -281,9 +311,9 @@ router.post('/verify-email', verifyEmail);
  */
 router.post('/resend-verification', resendVerification);
 
-router.get('/analytics', getAnalytics);
+router.get('/analytics', AuthenticateAdmin, getAnalytics);
 
-router.delete('/delete/:id', Authenticateuser, deleterUser);
+router.delete('/delete/:id', AuthenticateAdmin, deleterUser);
 
 router.get('/mySubscription',Authenticateuser, getMySubscriptionPlans);
 router.put('/mySubscription', Authenticateuser, updateMySubscription);

@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const analyticsController = require('./analytics.controller');
-const { Authenticateuser } = require('../../middleware/middleware')
+const { Authenticateuser, AuthenticateAdmin } = require('../../middleware/middleware')
 
-// Dashboard analytics routes
-router.get('/dashboard-stats', analyticsController.getDashboardStats);
-router.get('/revenue-data', analyticsController.getRevenueData);
-router.get('/recent-messages', analyticsController.getRecentMessages);
-router.get('/recent-transactions', analyticsController.getRecentTransactions);
+// Dashboard analytics routes (Admin only)
+router.get('/dashboard-stats', AuthenticateAdmin, analyticsController.getDashboardStats);
+router.get('/revenue-data', AuthenticateAdmin, analyticsController.getRevenueData);
+router.get('/recent-messages', AuthenticateAdmin, analyticsController.getRecentMessages);
+router.get('/recent-transactions', AuthenticateAdmin, analyticsController.getRecentTransactions);
 
 // User interaction routes (these typically require authentication)
 router.post('/property-view/:propertyId', analyticsController.recordPropertyView);

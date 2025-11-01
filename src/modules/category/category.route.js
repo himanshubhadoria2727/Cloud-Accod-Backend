@@ -1,5 +1,5 @@
 const express = require('express');
-const { Authenticateuser } = require('../../middleware/middleware');
+const { Authenticateuser, AuthenticateAdmin } = require('../../middleware/middleware');
 const { upload } = require('../../utility/uploadfile');
 const { addCategory, getAllCategory, getS3Category, getS3Subcategories } = require('./category.controller');
 const router = express.Router();
@@ -52,7 +52,7 @@ const router = express.Router();
  *       400:
  *         description: Invalid input
  */
-router.post('/addCategory', addCategory);
+router.post('/addCategory', AuthenticateAdmin, addCategory);
 
 /**
  * @swagger

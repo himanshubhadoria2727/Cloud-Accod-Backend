@@ -1004,9 +1004,84 @@ const resendVerification = async (req, res) => {
   }
 };
 
+const adminLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password"
+      });
+    }
+
+    // Check if user has admin role
+    if (!user.roles || !user.roles.includes('admin')) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admin privileges required."
+      });
+    }
+
+    // Check if password is correct
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password"
+      });
+    }
+
+    // Check if email is verified
+    if (!user.verified) {
+      return res.status(403).json({
+        success: false,
+        verified: false,
+        message: "Please verify your email address before logging in"
+      });
+    }
+
+    // Generate JWT token with role information
+    const token = await GeneratesSignature({
+      _id: user._id,
+      email: user.email,
+      verified: user.verified,
+      roles: user.roles,
+    });
+
+    // Return admin user data (excluding sensitive information)
+    const userData = {
+      _id: user._id,
+      email: user.email,
+      username: user.username,
+      firstname: user.firstname,
+      lastname: user.lastname,
+      verified: user.verified,
+      roles: user.roles,
+    };
+
+    return res.status(200).json({
+      success: true,
+      message: "Admin login successful",
+      token,
+      user: userData
+    });
+
+  } catch (err) {
+    console.error('Admin login error:', err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error"
+    });
+  }
+};
+
 module.exports = {
   addUser,
   login,
+  adminLogin,
   verifyUser,
   resendOtp,
   getUser,
