@@ -1,5 +1,6 @@
 const Content = require("../../model/content.model");
-const contentValidationSchema = require("./content.dto")
+const contentValidationSchema = require("./content.dto");
+const { getImageUrl } = require("../../utility/uploadfile");
 
 
 
@@ -10,7 +11,7 @@ const addContent = async (req, res) => {
         // if (error) {
         //     return res.status(400).json({ message: error.details[0].message });
         // }
-        const bannerImage = req?.file?.filename ? req?.file?.filename : req.body.bannerImage
+        const bannerImage = req?.file?.filename ? getImageUrl(req.file.filename) : req.body.bannerImage
 
         const { title, description, phone_no, email } = req.body
 
@@ -51,7 +52,7 @@ const allContent = async (req, res) => {
 const editcontent = async (req, res) => {
     try {
         const { title, description,phone_no,email } = req.body;
-        const bannerImage = req?.file?.filename ? req?.file?.filename : req.body.bannerImage
+        const bannerImage = req?.file?.filename ? getImageUrl(req.file.filename) : req.body.bannerImage
         console.log(req.body);
         const updatedContent = await Content.findByIdAndUpdate(req.params.id, { title,phone_no,email, description, bannerImage }, { new: true });
         if (!updatedContent) {
